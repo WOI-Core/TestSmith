@@ -17,7 +17,7 @@ const SALT_ROUNDS = 10
 const { createProxyMiddleware } = require("http-proxy-middleware")
 
 // --- Config ---
-const GITHUB_TOKEN = "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" // Replace with your token
+const GITHUB_TOKEN = "" // Replace with your token
 const JUDGE0_API_URL = "http://localhost:2358"
 const GITHUB_REPO_API_BASE = "https://api.github.com/repos/WOI-Core/woi-grader-archive/contents/Camp2"
 
