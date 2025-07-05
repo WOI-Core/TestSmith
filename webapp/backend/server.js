@@ -1,4 +1,5 @@
 // server.js - GraderSmiths OJ backend
+require('dotenv').config();
 
 const express = require("express")
 const sqlite3 = require("sqlite3").verbose()
@@ -17,7 +18,7 @@ const SALT_ROUNDS = 10
 const { createProxyMiddleware } = require("http-proxy-middleware")
 
 // --- Config ---
-const GITHUB_TOKEN = "" // Replace with your token
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 const JUDGE0_API_URL = "http://localhost:2358"
 const GITHUB_REPO_API_BASE = "https://api.github.com/repos/WOI-Core/woi-grader-archive/contents/Camp2"
 
