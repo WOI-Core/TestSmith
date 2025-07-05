@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link active">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div style="padding: 2rem; border-bottom: 1px solid var(--border-color); text-align: center;">
+                <h2 style="margin: 0 0 0.5rem 0;">🏆 Leaderboard</h2>
+                <p style="color: var(--text-secondary); margin: 0;">Top performers in competitive programming</p>
+            </div>
+            
+            <div id="leaderboard-table" style="padding: 2rem;">
+                <div style="display: flex; align-items: center; justify-content: center; padding: 3rem; color: var(--text-secondary);">
+                    <div class="spinner" style="margin-right: 1rem;"></div>
+                    <span>Loading leaderboard...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0');
+        }
+
+        // Auth UI setup
+        function setupAuthUI() {
+            const authButtons = document.querySelector('.auth-buttons');
+            const username = localStorage.getItem('username');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Show/hide ToolSmith link based on role
+            const toolsmithLink = document.querySelector('a[href="toolsmith.html"]');
+            if (toolsmithLink) {
+                if (userRole === 'admin') {
+                    toolsmithLink.style.display = 'block';
+                } else {
+                    toolsmithLink.style.display = 'none';
+                }
+            }
+            
+            if (authButtons && username) {
+                const roleDisplay = userRole === 'admin' ? ' (Admin)' : '';
+                authButtons.innerHTML = `
+                    <span>Welcome, <strong>${username}${roleDisplay}</strong></span>
+                    <button id="logout-btn">Logout</button>
+                `;
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                });
+            } else if (authButtons) {
+                authButtons.innerHTML = `
+                    <a href="login.html"><button>Login</button></a>
+                    <a href="signup.html"><button style="background: var(--success-color);">Sign Up</button></a>
+                `;
+            }
+        }
+
+        // Load leaderboard
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboard-table');
+            
+            try {
+                const res = await fetch('/api/leaderboard');
+                if (!res.ok) throw new Error("Could not load leaderboard");
+                
+                const data = await res.json();
+                
+                if (!data.leaderboard || !Array.isArray(data.leaderboard) || data.leaderboard.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 3rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <h3 style="margin-bottom: 1rem;">No Data Available</h3>
+                            <p style="color: var(--text-secondary); margin-bottom: 2rem;">The leaderboard will populate as users solve problems</p>
+                            <a href="index.html" class="btn btn-primary" style="text-decoration: none;">
+                                <span>🚀</span>
+                                Start Solving
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Create leaderboard table
+                let html = `
+                    <div style="overflow-x: auto;">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Username</th>
+                                    <th>Problems Solved</th>
+                                    <th>Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                data.leaderboard.forEach((user, i) => {
+                    const rankClass = 
+                        i === 0 ? "top1" :
+                        i === 1 ? "top2" :
+                        i === 2 ? "top3" : "";
+                    
+                    const rankIcon = 
+                        i === 0 ? "🥇" :
+                        i === 1 ? "🥈" :
+                        i === 2 ? "🥉" : "";
+                    
+                    html += `
+                        <tr>
+                            <td>
+                                <div class="leaderboard-rank ${rankClass}" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    ${rankIcon}
+                                    <span>#${i + 1}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;">${user.username}</div>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-weight: 600; font-size: 1.125rem;">${user.solved}</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.875rem;">problems</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-weight: 600; font-size: 1.125rem; color: var(--accent-color);">${user.points}</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.875rem;">pts</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                // Add current user highlight if logged in
+                const currentUsername = localStorage.getItem('username');
+                if (currentUsername) {
+                    const userRank = data.leaderboard.findIndex(user => user.username === currentUsername);
+                    if (userRank !== -1) {
+                        html += `
+                            <div style="margin-top: 2rem; padding: 1.5rem; background: var(--input-bg); border-radius: 12px; border: 2px solid var(--accent-color);">
+                                <h4 style="margin: 0 0 1rem 0; color: var(--accent-color);">Your Ranking</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; text-align: center;">
+                                    <div>
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-color);">#${userRank + 1}</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Rank</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--success-color);">${data.leaderboard[userRank].solved}</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Solved</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning-color);">${data.leaderboard[userRank].points}</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Points</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                container.innerHTML = html;
+                
+            } catch (err) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem;">
+                        <div style="color: var(--error-color); font-size: 1.125rem; margin-bottom: 1rem;">⚠️ Error Loading Leaderboard</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">${err.message}</p>
+                        <button onclick="loadLeaderboard()" class="btn btn-primary">
+                            <span>🔄</span>
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            setupAuthUI();
+            initDarkMode();
+            loadLeaderboard();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sign Up - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main class="form-center">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 0.5rem;">🔐 Admin Account Creation</h2>
+                <p style="color: var(--text-secondary); margin: 0;">Create an administrator account with full access</p>
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--warning-color); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.875rem;">
+                    ⚠️ Admin accounts have access to ToolSmith and all administrative features
+                </div>
+            </div>
+            
+            <form id="admin-signup-form" class="auth-form">
+                <div>
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required placeholder="Choose a unique admin username" />
+                </div>
+                
+                <div>
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" required placeholder="Enter your email address" />
+                </div>
+                
+                <div>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required placeholder="Create a secure password" />
+                </div>
+                
+                <div>
+                    <label for="admin-key">Admin Access Key</label>
+                    <input type="password" id="admin-key" required placeholder="Enter admin access key" />
+                    <div style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                        Contact your system administrator for the admin access key
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-success">
+                    <span>👑</span>
+                    Create Admin Account
+                </button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Need a regular account?</p>
+                <a href="signup.html" class="btn btn-primary" style="text-decoration: none;">
+                    <span>👤</span>
+                    Create User Account
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Admin access key (in production, this should be environment-based)
+        const ADMIN_ACCESS_KEY = 'gradersmith-admin-2024';
+
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0');
+        }
+
+        // Form validation
+        function validateForm(username, email, password, adminKey) {
+            const errors = [];
+            
+            if (username.length < 3) {
+                errors.push("Username must be at least 3 characters long");
+            }
+            
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errors.push("Please enter a valid email address");
+            }
+            
+            if (password.length < 6) {
+                errors.push("Password must be at least 6 characters long");
+            }
+            
+            if (adminKey !== ADMIN_ACCESS_KEY) {
+                errors.push("Invalid admin access key");
+            }
+            
+            return errors;
+        }
+
+        // Show error messages
+        function showErrors(errors) {
+            const existingError = document.querySelector('.error-message');
+            if (existingError) existingError.remove();
+            
+            if (errors.length === 0) return;
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.style.cssText = `
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid rgba(239, 68, 68, 0.2);
+                color: var(--error-color);
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 1rem;
+            `;
+            
+            errorDiv.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">Please fix the following errors:</div>
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                    ${errors.map(error => `<li>${error}</li>`).join('')}
+                </ul>
+            `;
+            
+            document.querySelector('.auth-form').appendChild(errorDiv);
+        }
+
+        // Form submission
+        document.getElementById("admin-signup-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+            
+            const username = document.getElementById("username").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const adminKey = document.getElementById("admin-key").value;
+            
+            // Validate form
+            const errors = validateForm(username, email, password, adminKey);
+            if (errors.length > 0) {
+                showErrors(errors);
+                return;
+            }
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div>Creating admin account...';
+            
+            try {
+                const res = await fetch('/api/signup', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, password, role: 'admin' })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    localStorage.setItem('username', data.username);
+                    localStorage.setItem('userId', data.userId);
+                    localStorage.setItem('userRole', data.role);
+                    
+                    // Success feedback
+                    submitBtn.innerHTML = '<span>✅</span>Admin Account Created!';
+                    submitBtn.style.background = 'var(--success-color)';
+                    
+                    // Clear any existing errors
+                    const existingError = document.querySelector('.error-message');
+                    if (existingError) existingError.remove();
+                    
+                    // Show success message
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = `
+                        background: rgba(34, 197, 94, 0.1);
+                        border: 1px solid rgba(34, 197, 94, 0.2);
+                        color: var(--success-color);
+                        padding: 1rem;
+                        border-radius: 8px;
+                        margin-top: 1rem;
+                        text-align: center;
+                    `;
+                    successDiv.innerHTML = `
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">🎉 Admin Account Created Successfully!</div>
+                        <div>You now have full access to all administrative features including ToolSmith.</div>
+                    `;
+                    document.querySelector('.auth-form').appendChild(successDiv);
+                    
+                    setTimeout(() => {
+                        location.href = "index.html";
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || "Admin signup failed");
+                }
+            } catch (error) {
+                // Error feedback
+                submitBtn.innerHTML = '<span>❌</span>Signup Failed';
+                submitBtn.style.background = 'var(--error-color)';
+                
+                showErrors([error.message]);
+                
+                // Reset button after delay
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
+                    submitBtn.style.background = '';
+                }, 2000);
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initDarkMode();
+        });
+    </script>
+</body>
+</html>

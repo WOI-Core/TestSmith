@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraderSmith - Competitive Programming Platform</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="container" style="background: transparent; box-shadow: none; padding: 0;">
+            <!-- Hero Section -->
+            <section style="text-align: center; padding: 3rem 2rem; background: var(--card-bg); border-radius: 16px; margin-bottom: 2rem; box-shadow: var(--card-shadow);">
+                <h1 style="font-size: 3rem; margin-bottom: 1rem; background: linear-gradient(135deg, var(--accent-color), var(--success-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                    Welcome to GraderSmith
+                </h1>
+                <p style="font-size: 1.25rem; color: var(--text-secondary); margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Master competitive programming with our modern online judge platform. Practice problems, track progress, and compete with others.
+                </p>
+                
+                <!-- Search Section -->
+                <div class="spotlight-bar-wrap">
+                    <form id="spotlight-form" autocomplete="off">
+                        <span class="spotlight-icon" aria-hidden="true">🔍</span>
+                        <input type="text" class="spotlight-bar" id="searchsmith-search-input" placeholder="Ask SearchSmith to find problems!" />
+                    </form>
+                    <div class="spotlight-helper-text">(AI-powered problem search)</div>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <div class="progress-container" id="progress-container" style="display:none;">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+                <span class="progress-label" id="progress-label"></span>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="problem-filter-bar">
+                <input type="text" id="problem-search" placeholder="Search problems by name..." />
+                <label>
+                    <input type="checkbox" id="show-solved" checked>
+                    <span>Show Solved</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="show-unsolved" checked>
+                    <span>Show Unsolved</span>
+                </label>
+            </div>
+
+            <!-- SearchSmith Message -->
+            <div id="searchsmith-message" style="margin: 0 2rem 1rem 2rem;"></div>
+
+            <!-- Problems Section -->
+            <section>
+                <div style="padding: 0 2rem; margin-bottom: 1rem;">
+                    <h2 style="margin: 0; font-size: 1.5rem;">Practice Problems</h2>
+                    <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0;">Choose from our collection of competitive programming challenges</p>
+                </div>
+                
+                <div class="problem-grid" id="problem-list">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <div class="spinner" style="margin-bottom: 1rem;"></div>
+                        <p>Loading problems...</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = '/api';
+        let allProblems = [];
+        let completedProblems = new Set();
+        let filteredList;
+        let searchsmithActive = false;
+        let searchsmithLast = [];
+
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0'); // Default to dark mode
+        }
+
+        // Auth UI setup
+        function setupAuthUI() {
+            const authButtons = document.querySelector('.auth-buttons');
+            const username = localStorage.getItem('username');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Show/hide ToolSmith link based on role
+            const toolsmithLink = document.querySelector('a[href="toolsmith.html"]');
+            if (toolsmithLink) {
+                if (userRole === 'admin') {
+                    toolsmithLink.style.display = 'block';
+                } else {
+                    toolsmithLink.style.display = 'none';
+                }
+            }
+            
+            if (authButtons && username) {
+                const roleDisplay = userRole === 'admin' ? ' (Admin)' : '';
+                authButtons.innerHTML = `
+                    <span>Welcome, <strong>${username}${roleDisplay}</strong></span>
+                    <button id="logout-btn">Logout</button>
+                `;
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                });
+            } else if (authButtons) {
+                authButtons.innerHTML = `
+                    <a href="login.html"><button>Login</button></a>
+                    <a href="signup.html"><button style="background: var(--success-color);">Sign Up</button></a>
+                `;
+            }
+        }
+
+        async function verifyUserRole() {
+            const userId = localStorage.getItem('userId');
+            const storedRole = localStorage.getItem('userRole');
+            
+            if (userId && !storedRole) {
+                try {
+                    const response = await fetch(`/api/verify-role/${userId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        localStorage.setItem('userRole', data.role);
+                        setupAuthUI(); // Refresh UI with role
+                    }
+                } catch (error) {
+                    console.error('Failed to verify user role:', error);
+                }
+            }
+        }
+
+        // Fetch problems from API
+        async function fetchProblems() {
+            const container = document.getElementById('problem-list');
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/github-list`);
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch problems. Server responded with ${res.status}`);
+                }
+                
+                const problems = await res.json();
+                allProblems = problems.filter(problem => problem.type === 'dir');
+
+                // Get user progress
+                const userId = localStorage.getItem('userId');
+                completedProblems = new Set();
+                
+                if (userId) {
+                    try {
+                        const progressRes = await fetch(`${API_BASE_URL}/progress/${userId}`);
+                        if (progressRes.ok) {
+                            const data = await progressRes.json();
+                            if (data.completed && Array.isArray(data.completed)) {
+                                completedProblems = new Set(data.completed);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load user progress:', e);
+                    }
+                }
+                
+                renderProblems();
+                renderProgressBar();
+                
+            } catch (error) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                        <div style="color: var(--error-color); font-size: 1.125rem; margin-bottom: 1rem;">⚠️ Error Loading Problems</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">${error.message}</p>
+                        <p style="color: var(--text-muted); font-size: 0.875rem;">Please ensure your backend server is running.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render problems grid
+        function renderProblems(list) {
+            const problems = list !== undefined ? list : (filteredList !== undefined ? filteredList : allProblems);
+            const search = document.getElementById('problem-search').value.toLowerCase();
+            const showSolved = document.getElementById('show-solved').checked;
+            const showUnsolved = document.getElementById('show-unsolved').checked;
+            const container = document.getElementById('problem-list');
+            
+            container.innerHTML = '';
+            let shown = 0;
+            
+            problems.forEach(problem => {
+                const pid = problem.name;
+                const solved = completedProblems.has(pid);
+                const matchesSearch = pid.toLowerCase().includes(search);
+                
+                if ((solved && !showSolved) || (!solved && !showUnsolved)) return;
+                if (!matchesSearch) return;
+                
+                const card = document.createElement('div');
+                card.className = 'problem-card';
+                
+                card.innerHTML = `
+                    <div class="problem-card-header">
+                        <span class="problem-id">${pid}</span>
+                        <span class="problem-status ${solved ? 'completed' : 'unsolved'}">
+                            ${solved ? '✓ Completed' : 'Unsolved'}
+                        </span>
+                    </div>
+                    <a href="problem.html?id=${pid}" class="problem-link">
+                        <span class="problem-title">${pid.charAt(0).toUpperCase() + pid.slice(1).replace(/[-_]/g, ' ')}</span>
+                        <span class="problem-arrow">→</span>
+                    </a>
+                `;
+                
+                container.appendChild(card);
+                shown++;
+            });
+            
+            if (shown === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                        <p style="font-size: 1.125rem; margin-bottom: 0.5rem;">No problems found</p>
+                        <p style="font-size: 0.875rem;">Try adjusting your search or filter criteria</p>
+                    </div>
+                `;
+            }
+            
+            renderProgressBar();
+        }
+
+        // Render progress bar
+        function renderProgressBar() {
+            const container = document.getElementById('progress-container');
+            const fill = document.getElementById('progress-bar-fill');
+            const label = document.getElementById('progress-label');
+            
+            const total = allProblems.length;
+            const solved = completedProblems.size;
+            
+            if (total === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'flex';
+            const percent = Math.round(100 * solved / total);
+            fill.style.width = percent + '%';
+            label.textContent = `${solved} of ${total} problems solved (${percent}%)`;
+        }
+
+        // SearchSmith integration
+        document.getElementById('spotlight-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const input = document.getElementById('searchsmith-search-input');
+            const messageBox = document.getElementById('searchsmith-message');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            messageBox.innerHTML = `
+                <div style="background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <div class="spinner"></div>
+                    <span style="color: var(--text-secondary);">Searching with SearchSmith AI...</span>
+                </div>
+            `;
+            searchsmithActive = false;
+            
+            try {
+                const response = await fetch("/api/searchsmith", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: query }),
+                });
+                
+                if (!response.ok) throw new Error("SearchSmith API error");
+                
+                const data = await response.json();
+                
+                if (!data.recommended_problems || !Array.isArray(data.recommended_problems) || data.recommended_problems.length === 0) {
+                    messageBox.innerHTML = `
+                        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px; padding: 1rem; color: var(--warning-color);">
+                            <strong>No matching problems found</strong> - Try different keywords or browse all problems below.
+                        </div>
+                    `;
+                    renderProblems([]);
+                    searchsmithActive = true;
+                    searchsmithLast = [];
+                    return;
+                }
+                
+                const matchedSet = new Set(data.recommended_problems.map(p => p.toLowerCase()));
+                const filtered = allProblems.filter(prob => matchedSet.has(prob.name.toLowerCase()));
+                
+                searchsmithActive = true;
+                searchsmithLast = filtered;
+                
+                messageBox.innerHTML = `
+                    <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                        <span style="color: var(--success-color); font-weight: 500;">
+                            ✨ Found ${filtered.length} problems matching your search
+                        </span>
+                        <button id="clear-searchsmith" style="background: none; border: 1px solid var(--success-color); color: var(--success-color); padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem;">
+                            Show All Problems
+                        </button>
+                    </div>
+                `;
+                
+                renderProblems(filtered);
+                
+                document.getElementById('clear-searchsmith').onclick = function () {
+                    searchsmithActive = false;
+                    searchsmithLast = [];
+                    messageBox.innerHTML = "";
+                    input.value = "";
+                    renderProblems();
+                };
+                
+            } catch (err) {
+                messageBox.innerHTML = `
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 1rem; color: var(--error-color);">
+                        <strong>Search failed:</strong> ${err.message}
+                    </div>
+                `;
+            }
+        });
+
+        // Event listeners for filters
+        document.addEventListener('DOMContentLoaded', () => {
+            setupAuthUI();
+            initDarkMode();
+            verifyUserRole();
+            fetchProblems();
+            
+            // Filter event listeners
+            document.getElementById('problem-search').addEventListener('input', () => {
+                if (!searchsmithActive) renderProblems();
+                else renderProblems(searchsmithLast);
+            });
+            
+            document.getElementById('show-solved').addEventListener('change', () => {
+                if (!searchsmithActive) renderProblems();
+                else renderProblems(searchsmithLast);
+            });
+            
+            document.getElementById('show-unsolved').addEventListener('change', () => {
+                if (!searchsmithActive) renderProblems();
+                else renderProblems(searchsmithLast);
+            });
+        });
+    </script>
+</body>
+</html>

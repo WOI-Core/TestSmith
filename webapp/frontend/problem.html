@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <div class="container problem-container-transparent">
+        <div class="problem-layout">
+            <!-- Problem Statement Section -->
+            <div class="problem-statement">
+                <!-- Problem Header -->
+                <div class="problem-header">
+                    <h1 class="problem-title">
+                        <span class="problem-id-badge" id="problem-id-badge">Loading...</span>
+                        <span id="problem-title-text">Loading Problem...</span>
+                    </h1>
+                    <div class="problem-meta" id="problem-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Time Limit:</span>
+                            <span id="time-limit">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Memory Limit:</span>
+                            <span id="memory-limit">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PDF Viewer -->
+                <div class="pdf-container">
+                    <div class="pdf-header">
+                        <h3 class="pdf-title">Problem Statement</h3>
+                    </div>
+                    <div class="pdf-loading" id="pdf-loading">
+                        <div class="spinner"></div>
+                        <span>Loading problem statement...</span>
+                    </div>
+                    <iframe id="problem-pdf-iframe" class="pdf-viewer hidden"></iframe>
+                </div>
+            </div>
+
+            <!-- Code Editor Section -->
+            <div class="code-section">
+                <!-- Editor Card -->
+                <div class="editor-card">
+                    <div class="editor-header">
+                        <h3 class="editor-title">Solution</h3>
+                        <div class="language-selector">
+                            <label for="language">Language:</label>
+                            <select id="language">
+                                <option value="71">Python (3.8.1)</option>
+                                <option value="54">C++ (GCC 9.2.0)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="editor-container" class="editor-container"></div>
+                    <div class="editor-actions">
+                        <div></div> <!-- Spacer -->
+                        <button type="submit" class="submit-btn" id="submit-btn" form="submission-form">
+                            <span class="btn-icon">▶</span>
+                            Submit Solution
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Card -->
+                <div class="results-card" id="results-card">
+                    <div class="results-header">
+                        <h3 class="results-title">Submission Results</h3>
+                    </div>
+                    <div class="results-content">
+                        <div class="verdict" id="verdict">
+                            <span class="verdict-icon">⏳</span>
+                            <span>Evaluating your submission...</span>
+                        </div>
+                        <div class="test-cases" id="test-cases"></div>
+                        <div class="error-details hidden" id="error-details">
+                            <pre id="error-text"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden form for submission -->
+        <form id="submission-form" class="hidden">
+            <input type="hidden" id="code" name="code" />
+        </form>
+    </div>
+
+    <script>
+        // Monaco Editor Integration
+        let monacoEditor;
+        
+        function getMonacoLang(val) {
+            if (val === "71") return "python";
+            if (val === "54") return "cpp";
+            return "plaintext";
+        }
+        
+        function setupMonaco(initialValue, lang) {
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                if (monacoEditor) monacoEditor.dispose();
+                monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: initialValue || '',
+                    language: lang || 'cpp',
+                    theme: 'vs-dark',
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    automaticLayout: true,
+                    scrollbar: { vertical: "auto", horizontal: "auto" },
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    scrollBeyondLastLine: false,
+                    readOnly: false,
+                    cursorStyle: 'line',
+                    wordWrap: 'off'
+                });
+                
+                monacoEditor.onDidChangeModelContent(function () {
+                    document.getElementById('code').value = monacoEditor.getValue();
+                });
+                
+                document.getElementById('code').value = monacoEditor.getValue();
+            });
+        }
+
+        // Dark mode toggle
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0'); // Default to dark mode
+        }
+
+        // Auth UI setup
+        function setupAuthUI() {
+            const authButtons = document.querySelector('.auth-buttons');
+            const username = localStorage.getItem('username');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Show/hide ToolSmith link based on role
+            const toolsmithLink = document.querySelector('a[href="toolsmith.html"]');
+            if (toolsmithLink) {
+                if (userRole === 'admin') {
+                    toolsmithLink.style.display = 'block';
+                } else {
+                    toolsmithLink.style.display = 'none';
+                }
+            }
+            
+            if (authButtons && username) {
+                const roleDisplay = userRole === 'admin' ? ' (Admin)' : '';
+                authButtons.innerHTML = `
+                    <span>Welcome, <strong>${username}${roleDisplay}</strong></span>
+                    <button id="logout-btn">Logout</button>
+                `;
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    location.href = 'login.html';
+                });
+            } else if (authButtons) {
+                authButtons.innerHTML = `
+                    <a href="login.html"><button>Login</button></a>
+                    <a href="signup.html"><button class="btn-success">Sign Up</button></a>
+                `;
+            }
+        }
+
+        // Load problem configuration
+        async function loadConfig() {
+            const problemId = new URLSearchParams(window.location.search).get("id");
+            if (!problemId) {
+                document.getElementById('problem-title-text').textContent = 'Problem Not Found';
+                document.getElementById('problem-id-badge').textContent = 'ERROR';
+                return;
+            }
+
+            document.getElementById('problem-id-badge').textContent = problemId;
+            document.getElementById('problem-title-text').textContent = problemId.charAt(0).toUpperCase() + problemId.slice(1);
+
+            const rawConfigUrl = `https://raw.githubusercontent.com/WOI-Core/woi-grader-archive/refs/heads/main/Camp2/${problemId}/config.json`;
+
+            try {
+                const res = await fetch(rawConfigUrl);
+                if (!res.ok) throw new Error(`Config not found on GitHub (HTTP ${res.status})`);
+                const config = await res.json();
+                
+                document.getElementById('time-limit').textContent = config.timeLimit ? `${config.timeLimit} ms` : '-';
+                document.getElementById('memory-limit').textContent = config.memoryLimit ? `${config.memoryLimit} MB` : '-';
+                
+                if (config.title) {
+                    document.getElementById('problem-title-text').textContent = config.title;
+                }
+            } catch (err) {
+                console.error('Could not load config:', err.message);
+            }
+        }
+
+        // Load problem PDF
+        async function loadProblemData() {
+            const problemId = new URLSearchParams(window.location.search).get("id");
+            if (!problemId) return;
+
+            const rawPdfUrl = `https://raw.githubusercontent.com/WOI-Core/woi-grader-archive/refs/heads/main/Camp2/${problemId}/Problems/${problemId}.pdf`;
+            const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(rawPdfUrl)}&embedded=true`;
+            
+            const iframe = document.getElementById('problem-pdf-iframe');
+            const loading = document.getElementById('pdf-loading');
+            
+            iframe.onload = () => {
+                loading.classList.add('hidden');
+                iframe.classList.remove('hidden');
+            };
+            
+            iframe.src = viewerUrl;
+        }
+
+        // Display submission results
+        function displayResults(results, problemId) {
+            const resultsCard = document.getElementById('results-card');
+            const verdict = document.getElementById('verdict');
+            const testCases = document.getElementById('test-cases');
+            const errorDetails = document.getElementById('error-details');
+            
+            resultsCard.classList.add('show');
+            testCases.innerHTML = '';
+            errorDetails.classList.add('hidden');
+            
+            let allAccepted = true;
+            let hasErrors = false;
+            let errorText = '';
+            
+            if (!results || !Array.isArray(results)) {
+                verdict.className = 'verdict rejected';
+                verdict.innerHTML = '<span class="verdict-icon">❌</span><span>Error: Invalid response format from server.</span>';
+                return;
+            }
+            
+            results.forEach((res, i) => {
+                const testCase = document.createElement('div');
+                testCase.className = 'test-case';
+                
+                let status = res?.status?.description || "Unknown Error";
+                let statusClass = 'failed';
+                
+                if (res?.error) {
+                    status = "Error";
+                    hasErrors = true;
+                    errorText += `Test Case ${i + 1}: ${atob(res.error)}\n\n`;
+                }
+                
+                if (status !== 'Accepted') {
+                    allAccepted = false;
+                    if (res.compile_output) {
+                        hasErrors = true;
+                        errorText += `Compilation Error:\n${atob(res.compile_output)}\n\n`;
+                        status = "Compilation Error";
+                    } else if (res.stderr) {
+                        hasErrors = true;
+                        errorText += `Runtime Error (Test ${i + 1}):\n${atob(res.stderr)}\n\n`;
+                    }
+                } else {
+                    statusClass = 'passed';
+                }
+                
+                testCase.innerHTML = `
+                    <div class="test-case-info">
+                        <span class="test-case-number">Test Case ${i + 1}</span>
+                        <span class="test-case-status ${statusClass}">${status}</span>
+                    </div>
+                `;
+                
+                testCases.appendChild(testCase);
+            });
+            
+            // Set verdict
+            if (allAccepted) {
+                verdict.className = 'verdict accepted';
+                verdict.innerHTML = '<span class="verdict-icon">✅</span><span>Congratulations! All test cases passed!</span>';
+                saveUserProgress(problemId);
+            } else {
+                verdict.className = 'verdict rejected';
+                verdict.innerHTML = '<span class="verdict-icon">❌</span><span>Some test cases failed.</span>';
+            }
+            
+            // Show error details if any
+            if (hasErrors && errorText) {
+                errorDetails.classList.remove('hidden');
+                document.getElementById('error-text').textContent = errorText.trim();
+            }
+        }
+
+        // Save user progress
+        function saveUserProgress(problemId) {
+            const userId = localStorage.getItem('userId');
+            if (!userId) return;
+            
+            fetch('/api/progress', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, problemId })
+            }).then(res => res.json())
+              .then(data => console.log('Progress saved:', data))
+              .catch(e => console.error('Progress save failed:', e));
+        }
+
+        // Poll for verdict
+        function pollForVerdict(userId, problemId) {
+            const interval = setInterval(() => {
+                fetch(`/api/latest-submission/${userId}/${problemId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data || !data.status) return;
+                        
+                        if (data.status === "Evaluating" || data.status === "Pending") {
+                            // Keep showing evaluating state
+                            return;
+                        } else {
+                            fetch(`/api/submission-result/${data.id}`)
+                                .then(res => res.json())
+                                .then(result => {
+                                    displayResults(result.results, problemId);
+                                });
+                            
+                            // Re-enable submit button
+                            const submitBtn = document.getElementById('submit-btn');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<span class="btn-icon">▶</span>Submit Solution';
+                            clearInterval(interval);
+                        }
+                    });
+            }, 2000);
+        }
+
+        // Handle form submission
+        async function handleSubmission(e) {
+            e.preventDefault();
+            
+            const problemId = new URLSearchParams(window.location.search).get("id");
+            const source_code = monacoEditor ? monacoEditor.getValue() : document.getElementById("code").value;
+            const language_id = document.getElementById("language").value;
+            const userId = localStorage.getItem('userId');
+            
+            if (!source_code.trim()) {
+                alert('Please write some code before submitting.');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submit-btn');
+            const resultsCard = document.getElementById('results-card');
+            const verdict = document.getElementById('verdict');
+            
+            // Show evaluating state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div>Submitting...';
+            
+            resultsCard.classList.add('show');
+            verdict.className = 'verdict evaluating';
+            verdict.innerHTML = '<span class="verdict-icon">⏳</span><span>Submitting to judge... This may take a moment.</span>';
+            
+            try {
+                const response = await fetch('/api/submit-solution', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ problemId, language_id, source_code, userId })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Submission failed on the server.');
+                }
+                
+                displayResults(data.results, problemId);
+                
+            } catch (err) {
+                verdict.className = 'verdict rejected';
+                verdict.innerHTML = '<span class="verdict-icon">❌</span><span>Error: ' + err.message + '</span>';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="btn-icon">▶</span>Submit Solution';
+            }
+        }
+
+        // Initialize everything
+        window.onload = async () => {
+            const username = localStorage.getItem('username');
+            if (!username) {
+                alert('Please login first.');
+                location.href = 'login.html';
+                return;
+            }
+            
+            setupAuthUI();
+            initDarkMode();
+            
+            const userId = localStorage.getItem('userId');
+            const problemId = new URLSearchParams(window.location.search).get("id");
+            
+            // Setup Monaco editor
+            let langId = document.getElementById("language").value;
+            setupMonaco('', getMonacoLang(langId));
+            
+            // Language change handler
+            document.getElementById('language').addEventListener('change', function () {
+                let lang = getMonacoLang(this.value);
+                if (monacoEditor) {
+                    monaco.editor.setModelLanguage(monacoEditor.getModel(), lang);
+                }
+            });
+            
+            // Load previous submission if sid is provided
+            const sid = new URLSearchParams(window.location.search).get("sid");
+            if (sid) {
+                try {
+                    const res = await fetch(`/api/submission/${sid}`);
+                    const data = await res.json();
+                    if (data && data.source_code && monacoEditor) {
+                        monacoEditor.setValue(data.source_code);
+                        document.getElementById('code').value = data.source_code;
+                    }
+                    if (data && data.language) {
+                        const langValue = data.language === 'Python' ? "71" : data.language === 'C++' ? "54" : data.language;
+                        document.getElementById('language').value = langValue;
+                        let lang = getMonacoLang(langValue);
+                        if (monacoEditor) {
+                            monaco.editor.setModelLanguage(monacoEditor.getModel(), lang);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to load previous submission:', err);
+                }
+            }
+            
+            // Check if currently evaluating
+            try {
+                const res = await fetch(`/api/is-evaluating/${userId}/${problemId}`);
+                const data = await res.json();
+                const submitBtn = document.getElementById('submit-btn');
+                
+                if (data.evaluating) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<div class="spinner"></div>Checking code...';
+                    
+                    const resultsCard = document.getElementById('results-card');
+                    const verdict = document.getElementById('verdict');
+                    resultsCard.classList.add('show');
+                    verdict.className = 'verdict evaluating';
+                    verdict.innerHTML = '<span class="verdict-icon">⏳</span><span>Submitting to judge... This may take a moment.</span>';
+                    
+                    pollForVerdict(userId, problemId);
+                }
+            } catch (err) {
+                console.error('Failed to check evaluation status:', err);
+            }
+            
+            // Show latest verdict on load
+            try {
+                const submissionRes = await fetch(`/api/latest-submission/${userId}/${problemId}`);
+                const latest = await submissionRes.json();
+                
+                if (latest && latest.id && latest.status !== "Evaluating" && latest.status !== "Pending") {
+                    const verdictRes = await fetch(`/api/submission-result/${latest.id}`);
+                    const result = await verdictRes.json();
+                    if (result.results && result.results.length > 0) {
+                        displayResults(result.results, problemId);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load latest submission:', err);
+            }
+            
+            // Setup form submission
+            document.getElementById('submission-form').addEventListener('submit', handleSubmission);
+            document.getElementById('submit-btn').addEventListener('click', handleSubmission);
+            
+            // Load problem data
+            await loadConfig();
+            await loadProblemData();
+        };
+    </script>
+</body>
+</html>

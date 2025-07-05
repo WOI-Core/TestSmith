@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main class="form-center">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 0.5rem;">Welcome Back</h2>
+                <p style="color: var(--text-secondary); margin: 0;">Sign in to your GraderSmith account</p>
+            </div>
+            
+            <form id="login-form" class="auth-form">
+                <div>
+                    <label for="username">Username or Email</label>
+                    <input type="text" id="username" required placeholder="Enter your username or email" />
+                </div>
+                
+                <div>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required placeholder="Enter your password" />
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <span>🔐</span>
+                    Sign In
+                </button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Don't have an account?</p>
+                <a href="signup.html" class="btn btn-success" style="text-decoration: none;">
+                    <span>✨</span>
+                    Create Account
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0');
+        }
+
+        // Form submission
+        document.getElementById("login-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div>Signing in...';
+            
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    localStorage.setItem('username', data.username);
+                    localStorage.setItem('userId', data.userId);
+                    localStorage.setItem('userRole', data.role || 'user');
+                    
+                    // Success feedback
+                    submitBtn.innerHTML = '<span>✅</span>Success!';
+                    submitBtn.style.background = 'var(--success-color)';
+                    
+                    setTimeout(() => {
+                        location.href = "index.html";
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || "Login failed");
+                }
+            } catch (error) {
+                // Error feedback
+                submitBtn.innerHTML = '<span>❌</span>Login Failed';
+                submitBtn.style.background = 'var(--error-color)';
+                
+                // Show error message
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = `
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    color: var(--error-color);
+                    padding: 1rem;
+                    border-radius: 8px;
+                    margin-top: 1rem;
+                    text-align: center;
+                `;
+                errorDiv.textContent = error.message;
+                
+                const existingError = document.querySelector('.error-message');
+                if (existingError) existingError.remove();
+                
+                errorDiv.className = 'error-message';
+                document.querySelector('.auth-form').appendChild(errorDiv);
+                
+                // Reset button after delay
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
+                    submitBtn.style.background = '';
+                }, 2000);
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initDarkMode();
+        });
+    </script>
+</body>
+</html>

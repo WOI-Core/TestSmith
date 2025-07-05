@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <!-- Timezone utilities -->
+    <script src="utils/timezone.js"></script>
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link active">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Submissions List Container -->
+        <div class="container" id="submissions-container">
+            <div style="padding: 2rem; border-bottom: 1px solid var(--border-color);">
+                <h2 style="margin: 0 0 0.5rem 0;">Your Submissions</h2>
+                <p style="color: var(--text-secondary); margin: 0;">Track your progress and review past submissions</p>
+                <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">
+                    <span>🕐 Times shown in Bangkok timezone (GMT+7)</span>
+                </div>
+            </div>
+            
+            <div id="submissions-list" style="padding: 2rem;">
+                <div style="display: flex; align-items: center; justify-content: center; padding: 3rem; color: var(--text-secondary);">
+                    <div class="spinner" style="margin-right: 1rem;"></div>
+                    <span>Loading your submissions...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submission Detail View Container (Hidden by default) -->
+        <div class="container submission-detail-container hidden" id="submission-detail-container">
+            <!-- Header with back button -->
+            <div class="submission-detail-header">
+                <button class="back-btn" id="back-to-list">
+                    <span>←</span>
+                    Back to Submissions
+                </button>
+                <div class="submission-info">
+                    <h2 id="detail-problem-title">Problem Details</h2>
+                    <div class="submission-meta">
+                        <span class="meta-item">
+                            <strong>Language:</strong> <span id="detail-language">-</span>
+                        </span>
+                        <span class="meta-item">
+                            <strong>Status:</strong> <span id="detail-status" class="submission-status-badge">-</span>
+                        </span>
+                        <span class="meta-item">
+                            <strong>Submitted:</strong> <span id="detail-timestamp">-</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-column layout for code and verdicts -->
+            <div class="submission-detail-layout">
+                <!-- Code Preview Section -->
+                <div class="code-preview-section">
+                    <div class="code-preview-card">
+                        <div class="code-preview-header">
+                            <h3 class="code-preview-title">Submitted Code</h3>
+                            <div class="code-actions">
+                                <button class="copy-code-btn" id="copy-code-btn" title="Copy code to clipboard">
+                                    <span>📋</span>
+                                    Copy
+                                </button>
+                                <button class="resubmit-btn" id="resubmit-btn" title="Open in problem page">
+                                    <span>🔄</span>
+                                    Resubmit
+                                </button>
+                            </div>
+                        </div>
+                        <div id="code-preview-container" class="code-preview-container"></div>
+                    </div>
+                </div>
+
+                <!-- Verdicts Section -->
+                <div class="verdicts-section">
+                    <div class="verdicts-card">
+                        <div class="verdicts-header">
+                            <h3 class="verdicts-title">Test Case Results</h3>
+                            <div class="verdict-summary" id="verdict-summary">
+                                <span class="verdict-icon">⏳</span>
+                                <span>Loading results...</span>
+                            </div>
+                        </div>
+                        <div class="verdicts-content" id="verdicts-content">
+                            <div style="display: flex; align-items: center; justify-content: center; padding: 2rem; color: var(--text-secondary);">
+                                <div class="spinner" style="margin-right: 1rem;"></div>
+                                <span>Loading test case results...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Details Card (if any) -->
+                    <div class="error-details-card hidden" id="error-details-card">
+                        <div class="error-details-header">
+                            <h3 class="error-details-title">Error Details</h3>
+                        </div>
+                        <div class="error-details-content">
+                            <pre id="error-details-text"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Monaco Editor Integration
+        let monacoEditor;
+        let currentSubmissionData = null;
+        
+        function getMonacoLang(language) {
+            if (language === "Python" || language === "71") return "python";
+            if (language === "C++" || language === "54") return "cpp";
+            return "plaintext";
+        }
+        
+        function setupMonacoCodePreview(code, language) {
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                if (monacoEditor) monacoEditor.dispose();
+                
+                const container = document.getElementById('code-preview-container');
+                if (!container) return;
+                
+                monacoEditor = monaco.editor.create(container, {
+                    value: code || '// No code available',
+                    language: getMonacoLang(language),
+                    theme: 'vs-dark',
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    automaticLayout: true,
+                    scrollbar: { vertical: "auto", horizontal: "auto" },
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    scrollBeyondLastLine: false,
+                    readOnly: true, // Read-only for preview
+                    cursorStyle: 'line',
+                    wordWrap: 'off',
+                    contextmenu: false,
+                    selectOnLineNumbers: false
+                });
+            });
+        }
+
+        // Bangkok timezone formatting functions
+        function formatToBangkokTime(dateInput, options = {}) {
+            const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+            
+            const defaultOptions = {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            const formatOptions = { ...defaultOptions, ...options };
+            
+            try {
+                return date.toLocaleString('en-GB', formatOptions);
+            } catch (error) {
+                console.error('Error formatting date to Bangkok time:', error);
+                return 'Invalid Date';
+            }
+        }
+
+        function formatToBangkokTimeReadable(dateInput) {
+            const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+            
+            try {
+                return date.toLocaleString('en-US', {
+                    timeZone: 'Asia/Bangkok',
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                }) + ' (GMT+7)';
+            } catch (error) {
+                console.error('Error formatting date to readable Bangkok time:', error);
+                return 'Invalid Date';
+            }
+        }
+
+        function getRelativeTimeBangkok(dateInput) {
+            const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+            const now = new Date();
+            
+            // Convert both dates to Bangkok timezone for accurate comparison
+            const bangkokDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+            const bangkokNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+            
+            const diffMs = bangkokNow - bangkokDate;
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            const diffHours = Math.floor(diffMinutes / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffSeconds < 60) {
+                return 'Just now';
+            } else if (diffMinutes < 60) {
+                return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else {
+                return formatToBangkokTimeReadable(date);
+            }
+        }
+
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0');
+        }
+
+        // Auth UI setup
+        function setupAuthUI() {
+            const authButtons = document.querySelector('.auth-buttons');
+            const username = localStorage.getItem('username');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Show/hide ToolSmith link based on role
+            const toolsmithLink = document.querySelector('a[href="toolsmith.html"]');
+            if (toolsmithLink) {
+                if (userRole === 'admin') {
+                    toolsmithLink.style.display = 'block';
+                } else {
+                    toolsmithLink.style.display = 'none';
+                }
+            }
+            
+            if (authButtons && username) {
+                const roleDisplay = userRole === 'admin' ? ' (Admin)' : '';
+                authButtons.innerHTML = `
+                    <span>Welcome, <strong>${username}${roleDisplay}</strong></span>
+                    <button id="logout-btn">Logout</button>
+                `;
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                });
+            } else if (authButtons) {
+                authButtons.innerHTML = `
+                    <a href="login.html"><button>Login</button></a>
+                    <a href="signup.html"><button style="background: var(--success-color);">Sign Up</button></a>
+                `;
+            }
+        }
+
+        // Show submission detail view
+        async function showSubmissionDetail(submissionId, problemId) {
+            const listContainer = document.getElementById('submissions-container');
+            const detailContainer = document.getElementById('submission-detail-container');
+            
+            // Hide list, show detail
+            listContainer.classList.add('hidden');
+            detailContainer.classList.remove('hidden');
+            
+            // Update problem title
+            document.getElementById('detail-problem-title').textContent = `Problem: ${problemId}`;
+            
+            // Reset content
+            document.getElementById('detail-language').textContent = '-';
+            document.getElementById('detail-status').textContent = '-';
+            document.getElementById('detail-timestamp').textContent = '-';
+            document.getElementById('verdict-summary').innerHTML = '<span class="verdict-icon">⏳</span><span>Loading results...</span>';
+            document.getElementById('verdicts-content').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; padding: 2rem; color: var(--text-secondary);"><div class="spinner" style="margin-right: 1rem;"></div><span>Loading test case results...</span></div>';
+            document.getElementById('error-details-card').classList.add('hidden');
+            
+            try {
+                // Fetch submission details
+                const res = await fetch(`/api/submission/${submissionId}`);
+                if (!res.ok) throw new Error("Failed to fetch submission details");
+                
+                const submission = await res.json();
+                currentSubmissionData = submission;
+                
+                // Update submission info
+                document.getElementById('detail-language').textContent = submission.language || 'Unknown';
+                document.getElementById('detail-timestamp').textContent = formatToBangkokTimeReadable(submission.timestamp);
+                
+                // Set status with color
+                const statusEl = document.getElementById('detail-status');
+                statusEl.textContent = submission.status || 'Unknown';
+                statusEl.className = `submission-status-badge ${
+                    submission.status === 'Accepted' ? 'submission-status-accepted' :
+                    submission.status === 'Rejected' ? 'submission-status-rejected' :
+                    'submission-status-other'
+                }`;
+                
+                // Setup Monaco editor with the code
+                setupMonacoCodePreview(submission.source_code, submission.language);
+                
+                // Fetch and display verdicts
+                await loadVerdicts(submissionId);
+                
+            } catch (err) {
+                console.error('Failed to load submission details:', err);
+                document.getElementById('verdicts-content').innerHTML = `
+                    <div style="color: var(--error-color); padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        Error loading submission details: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Load and display verdicts
+        async function loadVerdicts(submissionId) {
+            try {
+                const verdictRes = await fetch(`/api/submission-result/${submissionId}`);
+                const verdictData = await verdictRes.json();
+                
+                const verdictSummary = document.getElementById('verdict-summary');
+                const verdictsContent = document.getElementById('verdicts-content');
+                const errorDetailsCard = document.getElementById('error-details-card');
+                
+                if (!Array.isArray(verdictData.results) || verdictData.results.length === 0) {
+                    verdictSummary.innerHTML = '<span class="verdict-icon">❓</span><span>No test results available</span>';
+                    verdictsContent.innerHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 2rem; text-align: center;">No test case results available</div>';
+                    return;
+                }
+                
+                const results = verdictData.results;
+                let passedCount = 0;
+                let totalCount = results.length;
+                let hasErrors = false;
+                let errorText = '';
+                
+                // Count passed tests and collect errors
+                results.forEach((result, i) => {
+                    const status = result?.status?.description || "Unknown";
+                    if (status === "Accepted") {
+                        passedCount++;
+                    } else {
+                        if (result.compile_output) {
+                            hasErrors = true;
+                            errorText += `Compilation Error:\n${atob(result.compile_output)}\n\n`;
+                        }
+                        if (result.stderr) {
+                            hasErrors = true;
+                            errorText += `Runtime Error (Test ${i + 1}):\n${atob(result.stderr)}\n\n`;
+                        }
+                        if (result.error) {
+                            hasErrors = true;
+                            errorText += `Test Case ${i + 1} Error: ${atob(result.error)}\n\n`;
+                        }
+                    }
+                });
+                
+                // Update verdict summary
+                const allPassed = passedCount === totalCount;
+                verdictSummary.className = `verdict-summary ${allPassed ? 'verdict-accepted' : 'verdict-rejected'}`;
+                verdictSummary.innerHTML = `
+                    <span class="verdict-icon">${allPassed ? '✅' : '❌'}</span>
+                    <span>${passedCount}/${totalCount} test cases passed</span>
+                `;
+                
+                // Generate test case results
+                let html = '<div class="test-cases-grid">';
+                results.forEach((result, i) => {
+                    const status = result?.status?.description || "Unknown Error";
+                    const statusClass = status === "Accepted" ? "test-case-passed" : "test-case-failed";
+                    const time = result.time ? `${parseFloat(result.time).toFixed(3)}s` : '-';
+                    const memory = result.memory ? `${Math.round(result.memory)}KB` : '-';
+                    
+                    html += `
+                        <div class="test-case-result ${statusClass}">
+                            <div class="test-case-header">
+                                <span class="test-case-number">Test Case ${i + 1}</span>
+                                <span class="test-case-status">${status}</span>
+                            </div>
+                            <div class="test-case-metrics">
+                                <span class="metric">
+                                    <span class="metric-label">Time:</span>
+                                    <span class="metric-value">${time}</span>
+                                </span>
+                                <span class="metric">
+                                    <span class="metric-label">Memory:</span>
+                                    <span class="metric-value">${memory}</span>
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                verdictsContent.innerHTML = html;
+                
+                // Show error details if any
+                if (hasErrors && errorText.trim()) {
+                    document.getElementById('error-details-text').textContent = errorText.trim();
+                    errorDetailsCard.classList.remove('hidden');
+                }
+                
+            } catch (err) {
+                console.error('Failed to load verdicts:', err);
+                document.getElementById('verdicts-content').innerHTML = `
+                    <div style="color: var(--error-color); padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        Error loading test results: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Copy code to clipboard
+        function copyCodeToClipboard() {
+            if (monacoEditor) {
+                const code = monacoEditor.getValue();
+                navigator.clipboard.writeText(code).then(() => {
+                    const btn = document.getElementById('copy-code-btn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<span>✅</span>Copied!';
+                    btn.style.background = 'var(--success-color)';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.style.background = '';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy code:', err);
+                    alert('Failed to copy code to clipboard');
+                });
+            }
+        }
+
+        // Resubmit code (open in problem page)
+        function resubmitCode() {
+            if (currentSubmissionData) {
+                const problemId = currentSubmissionData.problemId;
+                const submissionId = currentSubmissionData.id;
+                window.location.href = `problem.html?id=${problemId}&sid=${submissionId}`;
+            }
+        }
+
+        // Back to submissions list
+        function backToSubmissionsList() {
+            const listContainer = document.getElementById('submissions-container');
+            const detailContainer = document.getElementById('submission-detail-container');
+            
+            // Show list, hide detail
+            listContainer.classList.remove('hidden');
+            detailContainer.classList.add('hidden');
+            
+            // Dispose Monaco editor
+            if (monacoEditor) {
+                monacoEditor.dispose();
+                monacoEditor = null;
+            }
+            
+            currentSubmissionData = null;
+        }
+
+        // Load submissions
+        async function loadSubmissions() {
+            const username = localStorage.getItem('username');
+            const userId = localStorage.getItem('userId');
+            const container = document.getElementById('submissions-list');
+            
+            if (!username || !userId) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔐</div>
+                        <h3 style="margin-bottom: 1rem;">Authentication Required</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 2rem;">You need to sign in to view your submissions</p>
+                        <a href="login.html" class="btn btn-primary" style="text-decoration: none;">
+                            <span>🔐</span>
+                            Sign In
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/submissions/' + userId);
+                if (!res.ok) throw new Error("Could not load submissions");
+                
+                const data = await res.json();
+                
+                if (!data.submissions || !Array.isArray(data.submissions) || data.submissions.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 3rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+                            <h3 style="margin-bottom: 1rem;">No Submissions Yet</h3>
+                            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Start solving problems to see your submissions here</p>
+                            <a href="index.html" class="btn btn-primary" style="text-decoration: none;">
+                                <span>🚀</span>
+                                Browse Problems
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Create submissions table
+                let html = `
+                    <div style="overflow-x: auto;">
+                        <table class="submission-table">
+                            <thead>
+                                <tr>
+                                    <th>Problem</th>
+                                    <th>Language</th>
+                                    <th>Status</th>
+                                    <th>Submitted (Bangkok Time)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                data.submissions.forEach(sub => {
+                    const statusClass = 
+                        sub.status === "Accepted" ? "submission-status-accepted" :
+                        sub.status === "Rejected" ? "submission-status-rejected" :
+                        "submission-status-other";
+                    
+                    const formattedTime = formatToBangkokTimeReadable(sub.timestamp);
+                    const relativeTime = getRelativeTimeBangkok(sub.timestamp);
+                    
+                    html += `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600; color: var(--accent-color);">${sub.problemId}</div>
+                            </td>
+                            <td>${sub.language}</td>
+                            <td>
+                                <span class="submission-status-badge ${statusClass}">${sub.status}</span>
+                            </td>
+                            <td style="color: var(--text-secondary);">
+                                <div style="font-size: 0.9rem;">${formattedTime}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">${relativeTime}</div>
+                            </td>
+                            <td>
+                                <button class="view-submission-btn" onclick="showSubmissionDetail('${sub.id}', '${sub.problemId}')" title="View submission details">
+                                    <span>👁️</span>
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+                
+            } catch (err) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem;">
+                        <div style="color: var(--error-color); font-size: 1.125rem; margin-bottom: 1rem;">⚠️ Error Loading Submissions</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">${err.message}</p>
+                        <button onclick="loadSubmissions()" class="btn btn-primary">
+                            <span>🔄</span>
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            setupAuthUI();
+            initDarkMode();
+            loadSubmissions();
+            
+            // Setup event listeners
+            document.getElementById('back-to-list').addEventListener('click', backToSubmissionsList);
+            document.getElementById('copy-code-btn').addEventListener('click', copyCodeToClipboard);
+            document.getElementById('resubmit-btn').addEventListener('click', resubmitCode);
+        });
+    </script>
+</body>
+</html>

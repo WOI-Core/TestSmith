@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolSmith - GraderSmith</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <h1 onclick="location.href='index.html'">GraderSmith</h1>
+            <a href="toolsmith.html" class="toolsmith-link active">ToolSmith</a>
+            <a href="submission.html" class="toolsmith-link">Submissions</a>
+            <a href="leaderboard.html" class="toolsmith-link">Leaderboard</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="auth-buttons"></div>
+            <button id="darkmode-btn" title="Toggle dark mode">☀️</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="container" style="max-width: 800px;">
+            <div style="text-align: center; padding: 2rem; border-bottom: 1px solid var(--border-color);">
+                <h2 style="margin: 0 0 0.5rem 0; font-size: 2.25rem;">🛠️ ToolSmith</h2>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 1.125rem;">AI-powered competitive programming task generator</p>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <form id="taskForm" autocomplete="off" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div>
+                        <label for="contentName">Problem Name</label>
+                        <input type="text" id="contentName" name="contentName" required 
+                               placeholder="e.g., prime_checker, fibonacci_sequence" />
+                        <div style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                            Use lowercase letters, numbers, and underscores only
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="casesSize">Number of Test Cases</label>
+                        <input type="number" id="casesSize" name="casesSize" required min="1" max="20" 
+                               placeholder="5" value="5" />
+                        <div style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                            Recommended: 5-10 test cases for most problems
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="detail">Problem Description</label>
+                        <textarea id="detail" name="detail" rows="6" 
+                                  placeholder="Describe your problem requirements, constraints, input/output format, and any special conditions..."></textarea>
+                        <div style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                            Be specific about input/output formats, constraints, and edge cases
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" style="font-size: 1.125rem; padding: 1rem 2rem;">
+                        <span>🚀</span>
+                        Generate Problem
+                    </button>
+                </form>
+
+                <!-- Status Messages -->
+                <div id="status" style="margin-top: 1.5rem;"></div>
+
+                <!-- File Explorer -->
+                <div id="fileExplorer" style="display: none; margin-top: 2rem;">
+                    <div style="background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem;">
+                        <h4 style="margin: 0 0 1rem 0;">📁 Generated Files</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label for="fileDropdown" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select File to Preview:</label>
+                            <select id="fileDropdown" style="margin: 0;"></select>
+                        </div>
+                        
+                        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                            <div style="background: var(--header-bg); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); font-weight: 500;">
+                                File Content
+                            </div>
+                            <pre id="fileContent" style="margin: 0; padding: 1rem; background: var(--input-bg); color: var(--text-primary); font-size: 0.875rem; overflow-x: auto; max-height: 400px;"></pre>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+                            <button id="downloadBtn" class="btn btn-primary" style="flex: 1; min-width: 200px;">
+                                <span>💾</span>
+                                Download ZIP
+                            </button>
+                            <button id="uploadBtn" class="btn btn-success" style="flex: 1; min-width: 200px;">
+                                <span>☁️</span>
+                                Upload to Grader
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Dark mode functionality
+        function initDarkMode() {
+            const btn = document.getElementById('darkmode-btn');
+            if (!btn) return;
+            
+            function setDarkMode(on) {
+                if (on) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('darkMode', '1');
+                    btn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('darkMode', '0');
+                    btn.textContent = '🌙';
+                }
+            }
+            
+            btn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+            setDarkMode(localStorage.getItem('darkMode') !== '0');
+        }
+
+        // Auth UI setup
+        function setupAuthUI() {
+            const authButtons = document.querySelector('.auth-buttons');
+            const username = localStorage.getItem('username');
+            const userRole = localStorage.getItem('userRole');
+            
+            if (authButtons && username) {
+                const roleDisplay = userRole === 'admin' ? ' (Admin)' : '';
+                authButtons.innerHTML = `
+                    <span>Welcome, <strong>${username}${roleDisplay}</strong></span>
+                    <button id="logout-btn">Logout</button>
+                `;
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                });
+            } else if (authButtons) {
+                authButtons.innerHTML = `
+                    <a href="login.html"><button>Login</button></a>
+                    <a href="signup.html"><button style="background: var(--success-color);">Sign Up</button></a>
+                `;
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            const colors = {
+                info: 'var(--info-color)',
+                success: 'var(--success-color)',
+                error: 'var(--error-color)',
+                warning: 'var(--warning-color)'
+            };
+            
+            const icons = {
+                info: '💡',
+                success: '✅',
+                error: '❌',
+                warning: '⚠️'
+            };
+            
+            statusEl.innerHTML = `
+                <div style="background: rgba(${type === 'success' ? '34, 197, 94' : type === 'error' ? '239, 68, 68' : type === 'warning' ? '245, 158, 11' : '59, 130, 246'}, 0.1); 
+                            border: 1px solid rgba(${type === 'success' ? '34, 197, 94' : type === 'error' ? '239, 68, 68' : type === 'warning' ? '245, 158, 11' : '59, 130, 246'}, 0.2); 
+                            color: ${colors[type]}; padding: 1rem; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 1.25rem;">${icons[type]}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+
+        // ToolSmith functionality
+        document.addEventListener('DOMContentLoaded', function () {
+            // Role-based access control
+            const userRole = localStorage.getItem('userRole');
+            const username = localStorage.getItem('username');
+            
+            if (!username) {
+                alert('Please login first.');
+                location.href = 'login.html';
+                return;
+            }
+            
+            if (userRole !== 'admin') {
+                alert('Access denied. This feature is only available to administrators.');
+                location.href = 'index.html';
+                return;
+            }
+            
+            setupAuthUI();
+            initDarkMode();
+            
+            const form = document.getElementById('taskForm');
+            const fileDropdown = document.getElementById('fileDropdown');
+            const fileContent = document.getElementById('fileContent');
+            const fileExplorer = document.getElementById('fileExplorer');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            let latestBlob = null;
+            let latestFileName = '';
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalContent = submitBtn.innerHTML;
+                
+                const contentName = document.getElementById('contentName').value.trim();
+                const casesSize = parseInt(document.getElementById('casesSize').value.trim());
+                const detail = document.getElementById('detail').value.trim();
+
+                if (!contentName || !casesSize) {
+                    showStatus('Please fill in all required fields.', 'error');
+                    return;
+                }
+
+                // Validate content name
+                if (!/^[a-z0-9_]+$/.test(contentName)) {
+                    showStatus('Problem name must contain only lowercase letters, numbers, and underscores.', 'error');
+                    return;
+                }
+
+                // Show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="spinner"></div>Generating...';
+                showStatus('Generating your competitive programming problem... This may take a moment.', 'info');
+
+                try {
+                    const response = await fetch('/api/toolsmith', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content_name: contentName,
+                            cases_size: casesSize,
+                            detail: detail
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.statusText}`);
+                    }
+
+                    const blob = await response.blob();
+                    latestBlob = blob;
+                    latestFileName = `${contentName}_problem.zip`;
+
+                    // Load and display ZIP contents
+                    const zip = await JSZip.loadAsync(blob);
+                    fileDropdown.innerHTML = "";
+                    fileExplorer.style.display = "block";
+
+                    // Sort files for better organization
+                    const fileNames = Object.keys(zip.files).sort();
+                    fileNames.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        fileDropdown.appendChild(option);
+                    });
+
+                    // Display first file
+                    if (fileNames.length > 0) {
+                        const firstFile = zip.files[fileNames[0]];
+                        const text = await firstFile.async("string");
+                        fileContent.textContent = text;
+                    }
+
+                    // File dropdown change handler
+                    fileDropdown.onchange = async function () {
+                        const file = zip.files[this.value];
+                        if (file) {
+                            const text = await file.async("string");
+                            fileContent.textContent = text;
+                        }
+                    };
+
+                    showStatus(`Problem "${contentName}" generated successfully! You can now download or upload it.`, 'success');
+
+                } catch (error) {
+                    showStatus(`Generation failed: ${error.message}`, 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
+                }
+            });
+
+            // Download functionality
+            downloadBtn.addEventListener('click', function () {
+                if (latestBlob) {
+                    const downloadUrl = URL.createObjectURL(latestBlob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = latestFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(downloadUrl);
+                    showStatus('Download started successfully!', 'success');
+                }
+            });
+
+            // Upload functionality
+            uploadBtn.addEventListener('click', async function () {
+                if (!latestBlob) return;
+
+                const originalContent = uploadBtn.innerHTML;
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<div class="spinner"></div>Uploading...';
+                showStatus('Uploading problem to grader system...', 'info');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', latestBlob, latestFileName);
+
+                    const response = await fetch('/api/toolsmith-upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Upload failed: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    showStatus(`Upload successful! ${result.status || 'Problem is now available in the grader system.'}`, 'success');
+                    
+                } catch (error) {
+                    showStatus(`Upload failed: ${error.message}`, 'error');
+                } finally {
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = originalContent;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
