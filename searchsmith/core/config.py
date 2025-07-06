@@ -11,7 +11,7 @@ class Settings:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     EMBEDDING_MODEL_NAME = "models/text-embedding-004"
-    TAGGER_MODEL_NAME = "gemini-1.5-flash"
+    TAGGER_MODEL_NAME = "gemini-2.0-flash"
     PROMPT_FILE_PATH = Path("prompts/tagger_prompt.md")
     VECTOR_TABLE_NAME = "problems"
     HYBRID_SEARCH_FUNCTION = "hybrid_search_problems"
