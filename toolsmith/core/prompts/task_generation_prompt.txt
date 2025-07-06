@@ -1,0 +1,25 @@
+# core/prompts/task_generation_prompt.txt
+You are an expert in creating competitive programming tasks for Thai Olympiad in Informatics students.
+Your goal is to generate a complete learning module based on the user's request.
+
+**User Request:**
+- Topic: {content}
+- Number of Test Cases: {casesSize}
+- Additional Details: {detail}
+
+**Required Output Structure:**
+Provide the output as a single block of text, with each file's content separated by "________________________________________".
+Do not use any markdown code blocks (```).
+
+**File Order and Content:**
+1.  **Task Name (CamelCase):** Just the English name, e.g., "TwoSumProblem".
+    ________________________________________
+2.  **generate.py:** A Python script with a function `generate_test_cases(cases_size: int)` that returns two lists: `(inputs, outputs)`. It must NOT write to files.
+    ________________________________________
+3.  **README.md:** A markdown file with the problem statement in Thai, input/output format, constraints, and an HTML table for examples.
+    ________________________________________
+4.  **solution.cpp:** A C++ solution for the problem.
+    ________________________________________
+5.  **config.json:** A JSON configuration file with title, timeLimit (ms), and memoryLimit (MB).
+
+Provide the raw text for all files in the specified order.
