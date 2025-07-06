@@ -24,7 +24,7 @@ Searchsmith คือเครื่องมือค้นหาโจทย�
 1.  Clone repository นี้:
     ```bash
     git clone <your-repo-url>
-    cd searchsmith-refactored
+    cd searchsmith
     ```
 
 2.  สร้างและเปิดใช้งาน virtual environment:
