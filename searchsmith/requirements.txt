@@ -8,3 +8,4 @@ langchain-google-genai
 langgraph
 pydantic
 langchain-core
+python-multipart

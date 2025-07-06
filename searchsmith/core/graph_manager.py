@@ -1,5 +1,5 @@
 # core/graph_manager.py
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END  # ◀️ เพิ่ม import บรรทัดนี้
 from .graphs.models import GraphState
 from .graphs.nodes.generate_id import generate_problem_id
 from .graphs.nodes.generate_tags import generate_tags
@@ -8,7 +8,9 @@ from .graphs.nodes.upsert_data import upsert_to_supabase
 
 class GraphManager:
     def __init__(self):
+        # ตอนนี้ Python จะรู้จัก StateGraph แล้ว
         self.workflow = StateGraph(GraphState)
+        
         self.workflow.add_node("generate_problem_id", generate_problem_id)
         self.workflow.add_node("generate_tags", generate_tags)
         self.workflow.add_node("generate_embedding", generate_embedding)

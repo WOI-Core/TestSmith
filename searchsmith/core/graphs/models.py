@@ -2,6 +2,7 @@
 from typing import TypedDict, Annotated
 
 class GraphState(TypedDict):
+    problem_name: str  # 🆕 เพิ่มฟิลด์นี้
     markdown_content: str
     solution_code: str
     problem_id: str
