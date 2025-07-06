@@ -2,7 +2,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from core.services.config import settings
-from ..generation_graph import GraphState
+from core.models.graph_models import GraphState  # <--- แก้ไขตรงนี้
 from pathlib import Path
 
 # Load prompt from file
@@ -17,6 +17,7 @@ async def generate_content_node(state: GraphState) -> dict:
     """Generates task content using the LLM based on the request."""
     print("--- NODE: GENERATING CONTENT ---")
     req = state["request"]
+    # ... (ส่วนที่เหลือของฟังก์ชันเหมือนเดิม) ...
     try:
         response = await chain.ainvoke({
             "content": req.content_name,
