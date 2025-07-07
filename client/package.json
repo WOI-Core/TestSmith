@@ -1,0 +1,17 @@
+{
+  "name": "gradersmith-client",
+  "version": "2.0.0",
+  "description": "GraderSmith Frontend Application",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "vite": "^4.4.0"
+  },
+  "devDependencies": {
+    "vitest": "^0.34.0"
+  }
+}
