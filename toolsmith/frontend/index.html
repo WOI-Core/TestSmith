@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolSmith</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* CSS styles remain the same, but we add a new style for the upload button */
+        :root {
+            --background-color: #1a202c;
+            --card-background: #2d3748;
+            --text-color: #e2e8f0;
+            --border-color: #4a5568;
+            --input-background: #2d3748;
+            --button-color: #38a169;
+            --button-hover-color: #48bb78;
+            --error-color: #e53e3e;
+            --upload-button-color: #dd6b20;
+            --upload-button-hover: #ed8936;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--background-color); color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 2rem; }
+        .container { width: 100%; max-width: 600px; background-color: var(--card-background); border-radius: 8px; padding: 2rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { font-size: 2rem; font-weight: bold; }
+        .header h1 .icon { margin-right: 0.5rem; }
+        .header p { color: #a0aec0; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-group input, .form-group textarea { width: 100%; background-color: var(--input-background); border: 1px solid var(--border-color); color: var(--text-color); padding: 0.75rem; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+        .form-group textarea { resize: vertical; min-height: 120px; }
+        .form-group .hint { font-size: 0.875rem; color: #a0aec0; margin-top: 0.5rem; }
+        .action-button { width: 100%; color: white; padding: 0.875rem; border: none; border-radius: 6px; font-size: 1.125rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; display: flex; justify-content: center; align-items: center; }
+        #generate-button { background-color: var(--button-color); }
+        #generate-button:hover { background-color: var(--button-hover-color); }
+        .action-button .icon { margin-right: 0.5rem; }
+        .status-area { text-align: center; margin-top: 1.5rem; font-weight: 500; min-height: 24px; }
+        .status-area.error { color: var(--error-color); }
+        .status-area.success { color: var(--button-hover-color); }
+        #preview-section { margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem; }
+        #preview-section h2 { text-align: center; margin-bottom: 1rem; }
+        #file-selector { width: 100%; padding: 0.75rem; background-color: var(--input-background); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 1rem; }
+        #file-content { background-color: var(--background-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; white-space: pre-wrap; word-wrap: break-word; min-height: 200px; max-height: 400px; overflow-y: auto; }
+        #download-button { margin-top: 1rem; background-color: #3182ce; }
+        #download-button:hover { background-color: #4299e1; }
+        #upload-button { margin-top: 1rem; background-color: var(--upload-button-color); }
+        #upload-button:hover { background-color: var(--upload-button-hover); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1><span class="icon">🛠️</span>ToolSmith</h1>
+        <p>AI-powered competitive programming task generator</p>
+    </div>
+
+    <form id="problem-form">
+        <div class="form-group">
+            <label for="problemName">Content Name / Topic</label>
+            <input type="text" id="problemName" placeholder="e.g., Caesar Cipher, Depth First Search" required>
+            <p class="hint">A short description of the problem's topic.</p>
+        </div>
+        <div class="form-group">
+            <label for="testCases">Number of Test Cases</label>
+            <input type="number" id="testCases" value="5" min="1" required>
+            <p class="hint">Recommended: 5-10 test cases for most problems</p>
+        </div>
+        <div class="form-group">
+            <label for="description">Problem Description</label>
+            <textarea id="description" placeholder="Describe your problem requirements, constraints, input/output format, and any special conditions..."></textarea>
+            <p class="hint">Be specific about input/output formats, constraints, and edge cases</p>
+        </div>
+        <button type="submit" id="generate-button" class="action-button">
+            <span class="icon">🚀</span><span id="button-text">Generate Problem</span>
+        </button>
+    </form>
+
+    <div id="status" class="status-area"></div>
+
+    <div id="preview-section" style="display: none;">
+        <h2>Generated Files Preview</h2>
+        <select id="file-selector"></select>
+        <pre id="file-content"></pre>
+        <button id="download-button" class="action-button">Download ZIP</button>
+        <button id="upload-button" class="action-button">Approve and Upload to Database</button>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
