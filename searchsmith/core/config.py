@@ -13,6 +13,7 @@ class Settings:
     EMBEDDING_MODEL_NAME = "models/text-embedding-004"
     TAGGER_MODEL_NAME = "gemini-2.0-flash"
     PROMPT_FILE_PATH = Path("prompts/tagger_prompt.md")
+    QUERY_EXPANSION_PROMPT_PATH = Path("prompts/query_expansion_prompt.md")
     VECTOR_TABLE_NAME = "problems"
     HYBRID_SEARCH_FUNCTION = "hybrid_search_problems"
 
