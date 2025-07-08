@@ -2,20 +2,19 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles # 1. Import StaticFiles
+from fastapi.staticfiles import StaticFiles
 from io import BytesIO
 import zipfile
 import json
 import base64
 
 from core.services.graph_manager import GraphManager, get_graph_manager
-from core.services.database_service import DatabaseService, get_database_service
+# --- แก้ไขการ import ---
+from core.services.storage_service import StorageService, get_storage_service
 from core.models.pydantic_models import TaskRequest
 
 app = FastAPI(title="Toolsmith API")
 
-# 2. "Mount" โฟลเดอร์ static เพื่อให้ FastAPI สามารถเสิร์ฟไฟล์จากโฟลเดอร์นี้ได้
-#    ต้องวางไว้ก่อนการตั้งค่า CORS หรือ Routes อื่นๆ
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
@@ -45,8 +44,9 @@ async def generate_preview_endpoint(
     
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as zipf:
+        # ใน ZIP จะมีโฟลเดอร์หลักครอบอยู่
         for file_info in files:
-            zipf.writestr(file_info['file_path'], file_info['content'])
+            zipf.writestr(f"{task_name}/{file_info['file_path']}", file_info['content'])
     buffer.seek(0)
 
     zip_filename = f"{task_name}_tasks.zip"
@@ -60,10 +60,14 @@ async def generate_preview_endpoint(
 async def upload_task_endpoint(
     req: TaskRequest,
     graph_manager: GraphManager = Depends(get_graph_manager),
-    db_service: DatabaseService = Depends(get_database_service)
+    # --- แก้ไข Dependency ---
+    storage_service: StorageService = Depends(get_storage_service)
 ):
+    """
+    Generates the files and uploads them directly to Supabase Storage.
+    """
     try:
-        print("Re-running graph to ensure data integrity for database upload...")
+        print("Running graph to generate files for bucket upload...")
         final_state = await graph_manager.execute_graph(req)
 
         if not final_state.get("files") or final_state.get("error"):
@@ -72,8 +76,9 @@ async def upload_task_endpoint(
         task_name = final_state.get("task_name")
         files = final_state.get("files")
 
-        db_service.create_task_record(req, task_name, files)
+        # --- เรียกใช้ StorageService ใหม่ ---
+        storage_service.upload_files(task_name, files)
         
-        return JSONResponse(status_code=200, content={"message": f"Task '{task_name}' and its {len(files)} files uploaded successfully!"})
+        return JSONResponse(status_code=200, content={"message": f"Task '{task_name}' and its {len(files)} files uploaded to bucket successfully!"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload and database insert failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload to bucket failed: {str(e)}")

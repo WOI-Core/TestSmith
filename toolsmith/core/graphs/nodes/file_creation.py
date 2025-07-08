@@ -31,37 +31,35 @@ async def create_files_node(state: GraphState) -> dict:
         parts = state["llm_output"].split("________________________________________")
         if len(parts) != 5:
             raise ValueError(f"Expected 5 parts from LLM output, but got {len(parts)}.")
-            
+
         task_name_raw = _clean_content(parts[0])
         gen_py = _clean_content(parts[1])
         readme = _clean_content(parts[2])
         solution = _clean_content(parts[3])
         config = _clean_content(parts[4])
-        
-        if ':' in task_name_raw:
-            task_name = task_name_raw.split(':')[-1].strip()
-        else:
-            task_name = task_name_raw
+
+        # --- NEW, MORE ROBUST CLEANING LOGIC ---
+        # This will remove "TaskName:" or "TaskName" from the beginning of the string
+        task_name = task_name_raw.replace("TaskName:", "").replace("TaskName", "").strip()
+        # ----------------------------------------
 
         inputs, outputs = _execute_generator(gen_py, state["request"].cases_size)
-        
+
         files = [
             {"category": "Solution", "file_path": f"Solutions/{task_name}.cpp", "file_name": f"{task_name}.cpp", "content": solution},
             {"category": "Problem", "file_path": f"Problems/{task_name}.md", "file_name": f"{task_name}.md", "content": readme},
             {"category": "Config", "file_path": "config.json", "file_name": "config.json", "content": config},
             {"category": "Script", "file_path": "Scripts/generate.py", "file_name": "generate.py", "content": gen_py}
         ]
-        
+
         for i, content in enumerate(inputs):
-            # --- บรรทัดที่แก้ไขการเยื้อง ---
             file_name = f"input{i:02}.txt"
             files.append({"category": "TestCaseInput", "file_path": f"TestCases/Inputs/{file_name}", "file_name": file_name, "content": str(content)})
-        
+
         for i, content in enumerate(outputs):
-            # --- บรรทัดที่แก้ไขการเยื้อง ---
             file_name = f"output{i:02}.txt"
             files.append({"category": "TestCaseOutput", "file_path": f"TestCases/Outputs/{file_name}", "file_name": file_name, "content": str(content)})
-        
+
         return {"task_name": task_name, "files": files}
 
     except Exception:
