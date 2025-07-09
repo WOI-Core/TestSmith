@@ -1,3 +1,7 @@
+/**
+ * Problem Controller
+ * Handles problem-related operations
+ */
 const BaseController = require("./BaseController")
 const SupabaseService = require("../services/SupabaseService")
 

@@ -1,16 +1,23 @@
+/**
+ * Main Server Entry Point - Updated for existing structure
+ * Initializes the application with proper error handling and middleware setup
+ */
 const express = require("express")
 const cors = require("cors")
 const bodyParser = require("body-parser")
 const path = require("path")
 
+// Import configuration and database
 const config = require("./config")
 const DatabaseManager = require("./config/database")
 
+// Import routes
 const authRoutes = require("./routes/authRoutes")
 const problemRoutes = require("./routes/problemRoutes")
 const submissionRoutes = require("./routes/submissionRoutes")
 const progressRoutes = require("./routes/progressRoutes")
 
+// Import legacy routes for compatibility
 const { createProxyMiddleware } = require("http-proxy-middleware")
 const multer = require("multer")
 const upload = multer()
@@ -21,13 +28,29 @@ class GraderSmithServer {
     this.server = null
   }
 
+  /**
+   * Initialize the server
+   */
   async initialize() {
     try {
+      // Validate configuration
       config.validateConfig()
+
+      // Initialize database
+      await DatabaseManager.connect()
+
+      // Setup middleware
       this.setupMiddleware()
+
+      // Setup routes
       this.setupRoutes()
+
+      // Setup legacy routes for compatibility
       this.setupLegacyRoutes()
+
+      // Setup error handling
       this.setupErrorHandling()
+
       console.log("✅ Server initialized successfully")
     } catch (error) {
       console.error("❌ Server initialization failed:", error)
@@ -35,14 +58,25 @@ class GraderSmithServer {
     }
   }
 
+  /**
+   * Setup middleware
+   */
   setupMiddleware() {
+    // CORS configuration
     this.app.use(cors())
+
+    // Body parsing
     this.app.use(bodyParser.json())
     this.app.use(bodyParser.urlencoded({ extended: true }))
+
     console.log("✅ Middleware configured")
   }
 
+  /**
+   * Setup new API routes
+   */
   setupRoutes() {
+    // Health check
     this.app.get("/", (req, res) => {
       const bangkokTime = new Date().toLocaleString("en-US", {
         timeZone: config.timezone.default,
@@ -64,6 +98,7 @@ class GraderSmithServer {
       })
     })
 
+    // New structured API routes
     this.app.use("/api/auth", authRoutes)
     this.app.use("/api/problems", problemRoutes)
     this.app.use("/api/submissions", submissionRoutes)
@@ -72,7 +107,11 @@ class GraderSmithServer {
     console.log("✅ New routes configured")
   }
 
+  /**
+   * Setup legacy routes for backward compatibility
+   */
   setupLegacyRoutes() {
+    // Legacy auth routes
     this.app.post("/api/signup", (req, res, next) => {
       req.url = "/signup"
       authRoutes(req, res, next)
@@ -88,11 +127,13 @@ class GraderSmithServer {
       authRoutes(req, res, next)
     })
 
+    // Legacy problem routes
     this.app.get("/api/github-list", (req, res, next) => {
       req.url = "/list"
       problemRoutes(req, res, next)
     })
 
+    // Legacy submission routes
     this.app.post("/api/submit-solution", (req, res, next) => {
       req.url = "/submit"
       submissionRoutes(req, res, next)
@@ -123,6 +164,7 @@ class GraderSmithServer {
       submissionRoutes(req, res, next)
     })
 
+    // Legacy progress routes
     this.app.post("/api/progress", (req, res, next) => {
       req.url = "/"
       progressRoutes(req, res, next)
@@ -138,6 +180,7 @@ class GraderSmithServer {
       progressRoutes(req, res, next)
     })
 
+    // External service proxies
     this.app.post("/api/searchsmith", async (req, res) => {
       try {
         const { text } = req.body
@@ -198,6 +241,7 @@ class GraderSmithServer {
       }
     })
 
+    // SearchSmith proxy
     this.app.use(
       "/searchsmith-api",
       createProxyMiddleware({
@@ -210,7 +254,11 @@ class GraderSmithServer {
     console.log("✅ Legacy routes configured")
   }
 
+  /**
+   * Setup error handling
+   */
   setupErrorHandling() {
+    // 404 handler
     this.app.use("*", (req, res) => {
       res.status(404).json({
         success: false,
@@ -218,6 +266,7 @@ class GraderSmithServer {
       })
     })
 
+    // Global error handler
     this.app.use((err, req, res, next) => {
       console.error("Global Error:", err)
       res.status(500).json({
@@ -229,6 +278,9 @@ class GraderSmithServer {
     console.log("✅ Error handling configured")
   }
 
+  /**
+   * Start the server
+   */
   async start() {
     try {
       await this.initialize()
@@ -259,6 +311,9 @@ class GraderSmithServer {
     }
   }
 
+  /**
+   * Graceful shutdown
+   */
   async shutdown() {
     console.log("🔄 Shutting down server...")
 
@@ -272,9 +327,11 @@ class GraderSmithServer {
   }
 }
 
+// Handle graceful shutdown
 const server = new GraderSmithServer()
 
 process.on("SIGTERM", () => server.shutdown())
 process.on("SIGINT", () => server.shutdown())
 
+// Start the server
 server.start()

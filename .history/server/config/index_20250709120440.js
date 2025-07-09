@@ -12,14 +12,22 @@ const config = {
     env: process.env.NODE_ENV || "development",
   },
 
-  // Supabase Configuration
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    serviceKey: process.env.SUPABASE_SERVICE_KEY,
+  // Database Configuration
+  database: {
+    path: process.env.DB_PATH || "./data/gradersmith.db",
+    options: {
+      // SQLite specific options
+      busyTimeout: 30000,
+      synchronous: "NORMAL",
+    },
   },
 
   // External Services
   services: {
+    github: {
+      token: process.env.GITHUB_TOKEN,
+      repoBase: "https://api.github.com/repos/WOI-Core/woi-grader-archive/contents/Camp2",
+    },
     judge0: {
       url: process.env.JUDGE0_URL || "http://localhost:2358",
     },
@@ -55,7 +63,7 @@ const config = {
 
 // Validation function to ensure required config is present
 function validateConfig() {
-  const required = ["supabase.url", "supabase.serviceKey"]
+  const required = ["services.github.token"]
 
   const missing = required.filter((path) => {
     const value = path.split(".").reduce((obj, key) => obj?.[key], config)

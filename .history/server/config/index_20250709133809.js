@@ -24,6 +24,7 @@ class GraderSmithServer {
   async initialize() {
     try {
       config.validateConfig()
+      await DatabaseManager.connect()
       this.setupMiddleware()
       this.setupRoutes()
       this.setupLegacyRoutes()
@@ -253,28 +254,3 @@ class GraderSmithServer {
         console.log(`🕐 Server timezone set to ${config.timezone.default}: ${bangkokTime}`)
         console.log(`🌍 Environment: ${config.server.env}`)
       })
-    } catch (error) {
-      console.error("❌ Failed to start server:", error)
-      process.exit(1)
-    }
-  }
-
-  async shutdown() {
-    console.log("🔄 Shutting down server...")
-
-    if (this.server) {
-      this.server.close()
-    }
-
-    await DatabaseManager.close()
-    console.log("✅ Server shutdown complete")
-    process.exit(0)
-  }
-}
-
-const server = new GraderSmithServer()
-
-process.on("SIGTERM", () => server.shutdown())
-process.on("SIGINT", () => server.shutdown())
-
-server.start()

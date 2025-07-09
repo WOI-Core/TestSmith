@@ -68,10 +68,7 @@ function ProblemComponent() {
   if (error) return <div className="p-8 text-center text-error-color">Error: {error}</div>;
   if (!problem) return <div className="p-8 text-center">Loading problem...</div>;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const pdfPath = `storage/v1/object/public/problems/${problemId}/Problems/${problemId}.pdf`;
-  const fullPdfUrl = `${supabaseUrl}/${pdfPath}`;
-  const pdfUrl = `https://docs.google.com/gview?url=${fullPdfUrl}&embedded=true`;
+  const pdfUrl = `https://docs.google.com/gview?url=https://raw.githubusercontent.com/WOI-Core/woi-grader-archive/main/Camp2/${problemId}/Problems/${problemId}.pdf&embedded=true`;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 max-w-screen-2xl mx-auto">

@@ -1,3 +1,7 @@
+/**
+ * Submission Controller
+ * Handles code submission and evaluation
+ */
 const BaseController = require("./BaseController")
 const SubmissionRepository = require("../repositories/SubmissionRepository")
 const SupabaseService = require("../services/SupabaseService")
@@ -9,16 +13,22 @@ class SubmissionController extends BaseController {
     super("SubmissionController")
   }
 
+  /**
+   * Submit solution for evaluation
+   */
   submitSolution = this.asyncHandler(async (req, res) => {
     const { problemId, language_id, source_code, userId } = req.body
 
+    // Validate required fields
     if (!this.validateRequired(req, res, ["problemId", "language_id", "source_code"])) {
       return
     }
 
     try {
+      // Map language ID to name
       const language = language_id === "71" ? "Python" : language_id === "54" ? "C++" : language_id
 
+      // Create submission record
       const submissionResult = await SubmissionRepository.createSubmission({
         user_id: userId,
         problem_id: problemId,
@@ -29,11 +39,13 @@ class SubmissionController extends BaseController {
 
       const submissionId = submissionResult.lastID
 
+      // Get problem configuration and test cases
       const [config, testCases] = await Promise.all([
         SupabaseService.getProblemConfig(problemId),
         SupabaseService.getTestCases(problemId),
       ])
 
+      // Submit to Judge0
       const results = await Judge0Service.evaluateSubmission({
         language_id,
         source_code,
@@ -41,10 +53,13 @@ class SubmissionController extends BaseController {
         config,
       })
 
+      // Determine final status
       const status = results.every((r) => r.status?.description === "Accepted") ? "Accepted" : "Rejected"
 
+      // Update submission with results
       await SubmissionRepository.updateSubmissionResults(submissionId, status, results)
 
+      // Save progress if accepted
       if (status === "Accepted" && userId && problemId) {
         await ProgressRepository.saveProgress(userId, problemId)
       }
@@ -55,6 +70,9 @@ class SubmissionController extends BaseController {
     }
   })
 
+  /**
+   * Get user submissions
+   */
   getUserSubmissions = this.asyncHandler(async (req, res) => {
     const { userId } = req.params
 
@@ -66,6 +84,9 @@ class SubmissionController extends BaseController {
     }
   })
 
+  /**
+   * Get submission details
+   */
   getSubmissionDetails = this.asyncHandler(async (req, res) => {
     const { submissionId } = req.params
 
@@ -81,6 +102,9 @@ class SubmissionController extends BaseController {
     }
   })
 
+  /**
+   * Get submission results
+   */
   getSubmissionResults = this.asyncHandler(async (req, res) => {
     const { submissionId } = req.params
 
@@ -92,6 +116,9 @@ class SubmissionController extends BaseController {
     }
   })
 
+  /**
+   * Check evaluation status
+   */
   getEvaluationStatus = this.asyncHandler(async (req, res) => {
     const { userId, problemId } = req.params
 
@@ -103,6 +130,9 @@ class SubmissionController extends BaseController {
     }
   })
 
+  /**
+   * Get latest submission
+   */
   getLatestSubmission = this.asyncHandler(async (req, res) => {
     const { userId, problemId } = req.params
 

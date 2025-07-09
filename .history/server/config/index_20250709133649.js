@@ -24,6 +24,7 @@ class GraderSmithServer {
   async initialize() {
     try {
       config.validateConfig()
+      await DatabaseManager.connect()
       this.setupMiddleware()
       this.setupRoutes()
       this.setupLegacyRoutes()
