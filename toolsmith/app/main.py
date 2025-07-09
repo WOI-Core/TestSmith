@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from io import BytesIO
 import zipfile
-import json
-import base64
 
 from core.services.graph_manager import GraphManager, get_graph_manager
 # --- แก้ไขการ import ---
