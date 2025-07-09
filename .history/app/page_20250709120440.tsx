@@ -21,7 +21,7 @@ export default function HomePage() {
         }
         const data = await res.json();
         // We filter for directories, as specified in your original code
-        setProblems(data.data);
+        setProblems(data.data.filter(p => p.type === 'dir'));
       } catch (err) {
         setError(err.message);
       } finally {
