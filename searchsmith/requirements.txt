@@ -1,0 +1,11 @@
+#### 📁 `requirements.txt`
+
+fastapi
+uvicorn
+python-dotenv
+supabase
+langchain-google-genai
+langgraph
+pydantic
+langchain-core
+python-multipart
