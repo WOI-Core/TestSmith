@@ -1,4 +1,3 @@
-// app/problem/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -13,11 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 interface Problem {
   id: string;
   name: string;
-  statement: string;
-  solution: string;
   description: string;
-  pdfFileName?: string; // Added to store the dynamically found PDF filename
-  // Add other fields from config.json if needed, like timeLimit, memoryLimit, note, tags
 }
 
 interface Language {
@@ -49,12 +44,12 @@ export default function ProblemPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const problemRes = await fetch(`http://localhost:3001/api/problems/details-from-storage/${problemId}`);
+        const problemRes = await fetch(`http://localhost:3001/api/problems/${problemId}`);
         if (!problemRes.ok) {
           const errorData = await problemRes.json();
-          throw new Error(errorData.message || 'Failed to fetch problem details from storage');
+          throw new Error(errorData.message || 'Failed to fetch problem details');
         }
-        const problemData: Problem = await problemRes.json();
+        const problemData = await problemRes.json();
         setProblem(problemData);
         
         setLanguages([
@@ -112,23 +107,14 @@ export default function ProblemPage() {
     return <div className="text-center py-10 text-red-500">{error || 'Problem not found'}</div>;
   }
 
-  // Construct PDF URL using the dynamically found pdfFileName
-  const pdfUrl = problem.pdfFileName 
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/problems/${problem.id}/Problems/${problem.pdfFileName}`
-    : null; // Set to null if no PDF found
+  const pdfUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/problems/${problem.id}/Problems/${problem.id}.pdf`;
 
   return (
     <div className="container mx-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-8">
       <Card>
         <CardHeader><CardTitle>{problem.name}</CardTitle></CardHeader>
         <CardContent>
-          {pdfUrl ? (
-            <iframe src={pdfUrl} className="w-full h-[75vh] border rounded-md" />
-          ) : (
-            <div className="w-full h-[75vh] border rounded-md flex items-center justify-center bg-gray-100 text-gray-500">
-              PDF Problem Statement Not Found.
-            </div>
-          )}
+          <iframe src={pdfUrl} className="w-full h-[75vh] border rounded-md" />
         </CardContent>
       </Card>
       <Card>

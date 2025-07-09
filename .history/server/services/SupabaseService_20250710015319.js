@@ -79,7 +79,9 @@ class SupabaseService {
         }
     }
 
+    // Updated paths for markdown and solution files based on the new structure
     async uploadProblemFiles(problemId, problemName, markdownContent, solutionCode) {
+        // Upload problem statement markdown to problems/{problemId}/Problems/{problemName}.md
         const { error: statementError } = await this.storage
             .from('problems')
             .upload(`${problemId}/Problems/${problemName}.md`, markdownContent, {
@@ -91,10 +93,11 @@ class SupabaseService {
             throw new Error(`Failed to upload problem statement (${problemId}/Problems/${problemName}.md) for ${problemId}.`);
         }
 
+        // Upload solution code to problems/{problemId}/Solutions/{problemName}.cpp
         const { error: solutionError } = await this.storage
             .from('problems')
             .upload(`${problemId}/Solutions/${problemName}.cpp`, solutionCode, {
-                contentType: 'text/plain',
+                contentType: 'text/plain', // Using text/plain, adjust if specific language types are needed
                 upsert: true
             });
 
@@ -116,13 +119,16 @@ class SupabaseService {
         }
     }
 
+    // Updated paths for markdown and solution files based on the new structure
     async downloadProblemFile(problemId, fileName, isSolution = false) {
         let filePath;
         if (fileName === 'config.json') {
             filePath = `${problemId}/config.json`;
         } else if (isSolution) {
+            // For solution files: problems/{problemId}/Solutions/{fileName}
             filePath = `${problemId}/Solutions/${fileName}`;
         } else {
+            // For markdown files: problems/{problemId}/Problems/{fileName}
             filePath = `${problemId}/Problems/${fileName}`;
         }
 
@@ -139,27 +145,6 @@ class SupabaseService {
         } catch (e) {
             return null;
         }
-    }
-
-    /**
-     * Lists files within a specific folder inside the 'problems' bucket.
-     * @param {string} folderPath The path to the folder (e.g., 'CombinatorialKingdom/Problems').
-     * @returns {Promise<Array<{name: string, id: string|null}>>} An array of file objects.
-     */
-    async listFilesInFolder(folderPath) {
-        const { data, error } = await this.storage
-            .from('problems')
-            .list(folderPath, {
-                limit: 100, // Adjust limit as needed
-                offset: 0,
-                sortBy: { column: 'name', order: 'asc' },
-            });
-
-        if (error) {
-            console.error(`Error listing files in folder ${folderPath}:`, error);
-            throw new Error(`Failed to list files in folder ${folderPath}.`);
-        }
-        return data;
     }
 }
 

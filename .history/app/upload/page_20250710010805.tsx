@@ -1,4 +1,3 @@
-// app/upload/page.tsx
 "use client"
 
 import { useState, useEffect, FormEvent } from "react"
@@ -8,25 +7,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, RefreshCw, Send } from "lucide-react" // Removed FileText and Code icons
+import { Upload, RefreshCw, Send } from "lucide-react"
 
 interface UntaggedProblem {
-  id: string;
-  name: string;
-  difficulty: number;
-  tags: string[];
-}
-
-interface FullProblemDetails {
-  id: string;
-  name: string;
-  statement: string;
-  solution: string;
-  difficulty: number;
-  timeLimit?: number;
-  memoryLimit?: number;
-  note?: string;
-  tags: string[];
+  problem_id: string // Changed from 'id' to 'problem_id'
+  problem_name: string
+  markdown_content: string
+  solution_code: string
 }
 
 export default function UploadPage() {
@@ -40,14 +27,12 @@ export default function UploadPage() {
   const [untaggedProblems, setUntaggedProblems] = useState<UntaggedProblem[]>([])
   const [isLoadingUntagged, setIsLoadingUntagged] = useState(false)
   const [syncingProblemId, setSyncingProblemId] = useState<string | null>(null)
-  // Removed loadingProblemDetailsId state as load functionality is removed
-
 
   const fetchUntaggedProblems = async () => {
     setIsLoadingUntagged(true)
     try {
-      const response = await fetch("/api/problems/from-storage")
-      if (!response.ok) throw new Error("Failed to fetch problems from storage.")
+      const response = await fetch("/api/problems/untagged")
+      if (!response.ok) throw new Error("Failed to fetch untagged problems.")
       const data = await response.json()
       setUntaggedProblems(data)
     } catch (error: any) {
@@ -116,28 +101,17 @@ export default function UploadPage() {
     }
   }
 
-  // Removed handleLoadProblemDetails function
-
-
   const handleSyncProblem = async (problem: UntaggedProblem) => {
-    setSyncingProblemId(problem.id)
+    setSyncingProblemId(problem.problem_id) // Changed from problem.id to problem.problem_id
     try {
-      const problemDetailsResponse = await fetch(`/api/problems/details-from-storage/${problem.id}`);
-      if (!problemDetailsResponse.ok) throw new Error("Failed to fetch problem details for sync.");
-      const problemDetails: FullProblemDetails = await problemDetailsResponse.json();
-
-      if (!problemDetails.statement || !problemDetails.solution) {
-          throw new Error("Problem content (statement or solution) missing for sync.");
-      }
-
       const response = await fetch("/api/problems/sync-searchsmith", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          problem_id: problem.id,
-          problem_name: problemDetails.name,
-          markdown_content: problemDetails.statement,
-          solution_code: problemDetails.solution,
+          problem_name: problem.problem_name,
+          markdown_content: problem.markdown_content,
+          solution_code: problem.solution_code,
+          problem_id: problem.problem_id, // Changed from problem.id to problem.problem_id
         }),
       })
 
@@ -151,7 +125,7 @@ export default function UploadPage() {
         title: "Sync Successful",
         description: `Problem "${result.problem_name}" has been indexed by SearchSmith.`,
       })
-      setUntaggedProblems((prev) => prev.filter((p) => p.id !== problem.id))
+      setUntaggedProblems((prev) => prev.filter((p) => p.problem_id !== problem.problem_id)) // Changed from p.id to p.problem_id
     } catch (error: any) {
       toast({
         title: "Error syncing problem",
@@ -172,9 +146,9 @@ export default function UploadPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>Add New Problem</CardTitle> {/* Reverted title */}
+            <CardTitle>Add New Problem</CardTitle>
             <CardDescription>
-              Add a new problem to the database and storage.
+              Add a new problem to the Supabase database. It will then appear in the sync list.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -234,9 +208,9 @@ export default function UploadPage() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Problems in Storage</CardTitle>
+                <CardTitle>Sync with SearchSmith</CardTitle>
                 <CardDescription>
-                  Problems found in Supabase Storage. Sync with SearchSmith.
+                  Problems below are in the database but not yet indexed for searching.
                 </CardDescription>
               </div>
               <Button variant="outline" size="icon" onClick={fetchUntaggedProblems} disabled={isLoadingUntagged}>
@@ -249,7 +223,7 @@ export default function UploadPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Problem Name</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -257,16 +231,15 @@ export default function UploadPage() {
                   <TableRow key="loading-row"><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>
                 ) : untaggedProblems.length > 0 ? (
                   untaggedProblems.map((problem) => (
-                    <TableRow key={problem.id}>
-                      <TableCell className="font-medium">{problem.name}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        {/* Removed Load button */}
+                    <TableRow key={problem.problem_id}> {/* Changed from problem.id to problem.problem_id */}
+                      <TableCell className="font-medium">{problem.problem_name}</TableCell>
+                      <TableCell className="text-right">
                         <Button
                           size="sm"
                           onClick={() => handleSyncProblem(problem)}
-                          disabled={syncingProblemId === problem.id}
+                          disabled={syncingProblemId === problem.problem_id} // Changed from problem.id to problem.problem_id
                         >
-                          {syncingProblemId === problem.id ? (
+                          {syncingProblemId === problem.problem_id ? ( // Changed from problem.id to problem.problem_id
                             "Syncing..."
                           ) : (
                             <><Send className="mr-2 h-4 w-4" /> Sync</>
@@ -276,7 +249,7 @@ export default function UploadPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-problems-row"><TableCell colSpan={2} className="text-center">No problems found in storage.</TableCell></TableRow>
+                  <TableRow key="no-problems-row"><TableCell colSpan={2} className="text-center">All problems are synced!</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

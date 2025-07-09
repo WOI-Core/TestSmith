@@ -2,7 +2,7 @@
 const ProblemRepository = require('../repositories/ProblemRepository');
 const supabase = require('../config/database');
 const axios = require('axios');
-const SupabaseService = require('../services/SupabaseService'); // ADDED THIS LINE
+const SupabaseService = require('../services/SupabaseService');
 
 class ProblemController {
     static async getAllProblems(req, res, next) {
@@ -27,20 +27,7 @@ class ProblemController {
     }
     
     static async searchProblems(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/search';
-        try {
-            const { query, tags, limit } = req.body;
-            const response = await axios.post(searchsmithUrl, { query, tags, limit });
-            res.status(200).json(response.data);
-        } catch (error) {
-            console.error('Error proxying search to SearchSmith:', error.message);
-            if (error.response) {
-                console.error('SearchSmith Response Error:', error.response.data);
-                res.status(error.response.status).json(error.response.data);
-            } else {
-                next(new Error("Failed to connect to SearchSmith service for search."));
-            }
-        }
+        res.status(404).json({ message: "Search endpoint should be proxied to SearchSmith service." });
     }
 
     static async createProblem(req, res, next) {
@@ -52,13 +39,13 @@ class ProblemController {
             const newProblem = await problemRepo.create(problemData);
             
             if (newProblem && newProblem.problem_id) {
-                const problemNameForFiles = problemData.name;
+                const problemNameForFiles = problemData.name; // Use the submitted name for file naming
                 
                 await supabaseService.uploadProblemFiles(
-                    newProblem.problem_id,
-                    problemNameForFiles,
+                    newProblem.problem_id, // problemId for folder
+                    problemNameForFiles, // problemName for file naming
                     problemData.statement,
-                    problemData.solution
+                    problemData.solution // solution content
                 );
                 
                 const configContent = JSON.stringify({
@@ -102,19 +89,9 @@ class ProblemController {
             const problemConfig = JSON.parse(configContent);
             const problemNameFromConfig = problemConfig.title;
 
-            const markdownContent = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.md`, false);
-            const solutionCode = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.cpp`, true);
-
-            let pdfFileName = null;
-            try {
-                const problemFiles = await supabaseService.listFilesInFolder(`${problem_id}/Problems`);
-                const pdfFile = problemFiles.find(file => file.name.endsWith('.pdf'));
-                if (pdfFile) {
-                    pdfFileName = pdfFile.name;
-                }
-            } catch (listError) {
-                console.warn(`Could not list PDF files for problem ${problem_id}:`, listError.message);
-            }
+            // Download markdown and solution using the problem name and new download logic
+            const markdownContent = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.md`, false); // false for not solution
+            const solutionCode = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.cpp`, true); // true for solution
 
             res.status(200).json({
                 id: problem_id,
@@ -125,8 +102,7 @@ class ProblemController {
                 timeLimit: problemConfig.timeLimit,
                 memoryLimit: problemConfig.memoryLimit,
                 note: problemConfig.note,
-                tags: problemConfig.tags || [],
-                pdfFileName: pdfFileName
+                tags: problemConfig.tags || []
             });
 
         } catch (error) {
@@ -136,49 +112,13 @@ class ProblemController {
     }
 
     static async syncWithSearchsmith(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/update-database';
         try {
             const { problem_name, markdown_content, solution_code, problem_id } = req.body;
             const problemRepo = new ProblemRepository(supabase);
-            const supabaseService = new SupabaseService();
-
-            let problemInDb;
-            try {
-                problemInDb = await problemRepo.getById(problem_id);
-            } catch (dbGetError) {
-                if (dbGetError.code === 'PGRST116' && dbGetError.details === 'The result contains 0 rows') {
-                    problemInDb = null;
-                } else {
-                    console.error('Error checking problem existence in DB:', dbGetError.message);
-                    throw dbGetError;
-                }
-            }
-
-            if (!problemInDb) {
-                const configContent = await supabaseService.downloadProblemFile(problem_id, 'config.json');
-                if (!configContent) {
-                    throw new Error(`Cannot create problem in DB: config.json not found for problem ID: ${problem_id}`);
-                }
-                const problemConfig = JSON.parse(configContent);
-                
-                const newProblemData = {
-                    problem_id: problem_id,
-                    name: problemConfig.title,
-                    difficulty: problemConfig.difficulty || 0,
-                };
-
-                try {
-                    await problemRepo.createFromBucket(newProblemData);
-                    console.log(`Problem ${problem_id} successfully added to database from bucket metadata.`);
-                } catch (createError) {
-                    console.error(`Failed to create problem ${problem_id} in database:`, createError.message);
-                    throw new Error(`Failed to onboard problem ${problem_id} into database.`);
-                }
-            }
 
             let searchsmithResponse;
             try {
-                searchsmithResponse = await axios.post(searchsmithUrl, {
+                searchsmithResponse = await axios.post('http://localhost:8000/v1/update-database', {
                     problem_name,
                     markdown_content: markdown_content,
                     solution_code: solution_code
@@ -201,21 +141,13 @@ class ProblemController {
                 throw new Error('SearchSmith service returned an unexpected status.');
             }
 
-            const { tags, embedding: embedding_vector } = searchsmithResponse.data.result || {};
+            const { tags, embedding_vector } = searchsmithResponse.data.result || {};
 
-            const updates = {
+            await problemRepo.updateProblem(problem_id, {
                 is_tagged: true,
                 tags: tags || [],
-                embedding: embedding_vector || null
-            };
-
-            try {
-                await problemRepo.updateProblem(problem_id, updates);
-                console.log('Successfully updated problem metadata in Supabase table.');
-            } catch (dbUpdateError) {
-                console.error(`Failed to update problem ${problem_id} metadata in database:`, dbUpdateError.message);
-                throw new Error("Failed to update problem metadata in database after SearchSmith sync.");
-            }
+                embedding_vector: embedding_vector || null
+            });
 
             res.status(200).json(searchsmithResponse.data);
 

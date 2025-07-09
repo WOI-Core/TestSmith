@@ -79,27 +79,29 @@ class SupabaseService {
         }
     }
 
-    async uploadProblemFiles(problemId, problemName, markdownContent, solutionCode) {
+    async uploadProblemFiles(problemId, markdownFileName, markdownContent, solutionFileName, solutionCode) {
+        // Upload problem statement markdown
         const { error: statementError } = await this.storage
             .from('problems')
-            .upload(`${problemId}/Problems/${problemName}.md`, markdownContent, {
+            .upload(`${problemId}/${markdownFileName}`, markdownContent, {
                 contentType: 'text/markdown',
                 upsert: true
             });
 
         if (statementError) {
-            throw new Error(`Failed to upload problem statement (${problemId}/Problems/${problemName}.md) for ${problemId}.`);
+            throw new Error(`Failed to upload problem statement (${markdownFileName}) for ${problemId}.`);
         }
 
+        // Upload solution code
         const { error: solutionError } = await this.storage
             .from('problems')
-            .upload(`${problemId}/Solutions/${problemName}.cpp`, solutionCode, {
-                contentType: 'text/plain',
+            .upload(`${problemId}/${solutionFileName}`, solutionCode, {
+                contentType: 'text/plain', // Use text/plain for code files, or more specific like text/x-c++
                 upsert: true
             });
 
         if (solutionError) {
-            throw new Error(`Failed to upload solution code (${problemId}/Solutions/${problemName}.cpp) for ${problemId}.`);
+            throw new Error(`Failed to upload solution code (${solutionFileName}) for ${problemId}.`);
         }
     }
 
@@ -116,16 +118,8 @@ class SupabaseService {
         }
     }
 
-    async downloadProblemFile(problemId, fileName, isSolution = false) {
-        let filePath;
-        if (fileName === 'config.json') {
-            filePath = `${problemId}/config.json`;
-        } else if (isSolution) {
-            filePath = `${problemId}/Solutions/${fileName}`;
-        } else {
-            filePath = `${problemId}/Problems/${fileName}`;
-        }
-
+    async downloadProblemFile(problemId, fileName) {
+        const filePath = `${problemId}/${fileName}`;
         const { data: fileBlob, error: downloadError } = await this.storage
             .from('problems')
             .download(filePath);
@@ -139,27 +133,6 @@ class SupabaseService {
         } catch (e) {
             return null;
         }
-    }
-
-    /**
-     * Lists files within a specific folder inside the 'problems' bucket.
-     * @param {string} folderPath The path to the folder (e.g., 'CombinatorialKingdom/Problems').
-     * @returns {Promise<Array<{name: string, id: string|null}>>} An array of file objects.
-     */
-    async listFilesInFolder(folderPath) {
-        const { data, error } = await this.storage
-            .from('problems')
-            .list(folderPath, {
-                limit: 100, // Adjust limit as needed
-                offset: 0,
-                sortBy: { column: 'name', order: 'asc' },
-            });
-
-        if (error) {
-            console.error(`Error listing files in folder ${folderPath}:`, error);
-            throw new Error(`Failed to list files in folder ${folderPath}.`);
-        }
-        return data;
     }
 }
 

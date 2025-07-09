@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, RefreshCw, Send } from "lucide-react" // Removed FileText and Code icons
+import { Upload, RefreshCw, Send, FileText, Code } from "lucide-react"
 
 interface UntaggedProblem {
   id: string;
@@ -40,7 +40,7 @@ export default function UploadPage() {
   const [untaggedProblems, setUntaggedProblems] = useState<UntaggedProblem[]>([])
   const [isLoadingUntagged, setIsLoadingUntagged] = useState(false)
   const [syncingProblemId, setSyncingProblemId] = useState<string | null>(null)
-  // Removed loadingProblemDetailsId state as load functionality is removed
+  const [loadingProblemDetailsId, setLoadingProblemDetailsId] = useState<string | null>(null);
 
 
   const fetchUntaggedProblems = async () => {
@@ -116,7 +116,33 @@ export default function UploadPage() {
     }
   }
 
-  // Removed handleLoadProblemDetails function
+  const handleLoadProblemDetails = async (problemId: string) => {
+    setLoadingProblemDetailsId(problemId);
+    try {
+      const response = await fetch(`/api/problems/details-from-storage/${problemId}`);
+      if (!response.ok) throw new Error("Failed to load problem details from storage.");
+      const data: FullProblemDetails = await response.json();
+
+      setProblemName(data.name);
+      setMarkdownContent(data.statement);
+      setSolutionCode(data.solution);
+      setDifficulty(data.difficulty);
+
+      toast({
+        title: "Problem Loaded",
+        description: `Details for "${data.name}" loaded into the form.`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Error Loading Problem",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProblemDetailsId(null);
+    }
+  };
 
 
   const handleSyncProblem = async (problem: UntaggedProblem) => {
@@ -172,7 +198,7 @@ export default function UploadPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>Add New Problem</CardTitle> {/* Reverted title */}
+            <CardTitle>Add New Problem</CardTitle>
             <CardDescription>
               Add a new problem to the database and storage.
             </CardDescription>
@@ -258,9 +284,8 @@ export default function UploadPage() {
                 ) : untaggedProblems.length > 0 ? (
                   untaggedProblems.map((problem) => (
                     <TableRow key={problem.id}>
-                      <TableCell className="font-medium">{problem.name}</TableCell>
+                      <TableCell className="font-medium">{problem.name ?? 'N/A'}</TableCell> {/* Added nullish coalescing */}
                       <TableCell className="text-right space-x-2">
-                        {/* Removed Load button */}
                         <Button
                           size="sm"
                           onClick={() => handleSyncProblem(problem)}

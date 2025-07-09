@@ -12,12 +12,12 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface Problem {
-  id: string // This will be the folder name (e.g., "CoinCollection")
-  name: string // This will be the 'title' from config.json
+  id: string // This `id` likely comes from `problem_id` in DB, or needs mapping
+  name: string // This should be mapped from `problem_name`
   tags: string[]
   difficulty: number
-  solvers: number // This will be mocked as it's not in config.json
-  solved: boolean // This will be mocked as it's not in config.json
+  solvers: number // Assuming this is present or mocked
+  solved: boolean // Assuming this is present or mocked
   relevance?: number
   reason?: string
 }
@@ -40,19 +40,23 @@ export default function ProblemsPage() {
     const fetchProblems = async () => {
       setLoading(true)
       try {
-        // Changed to fetch from the /from-storage endpoint
-        const response = await fetch('/api/problems/from-storage');
+        const response = await fetch('/api/problems');
         if (!response.ok) {
-          throw new Error(`Failed to fetch problems from storage: ${response.statusText}`);
+          throw new Error(`Failed to fetch problems: ${response.statusText}`);
         }
-        const data: Problem[] = await response.json();
-        // Add mock data for solvers and solved as they are not in config.json
-        const problemsWithMockData = data.map(problem => ({
-          ...problem,
-          solvers: Math.floor(Math.random() * 100) + 1, // Mock solvers
-          solved: Math.random() > 0.5, // Mock solved status
+        const data = await response.json();
+        // Map the incoming data to match the Problem interface
+        const mappedProblems: Problem[] = data.map((p: any) => ({
+          id: p.problem_id, // Map problem_id from DB to id for component
+          name: p.problem_name, // Map problem_name from DB to name for component
+          tags: p.tags || [],
+          difficulty: p.difficulty || 0,
+          solvers: p.solvers || 0, // Assuming solvers is a DB column or mock it
+          solved: p.solved || false, // Assuming solved is a DB column or mock it
+          relevance: p.relevance,
+          reason: p.reason,
         }));
-        setProblems(problemsWithMockData);
+        setProblems(mappedProblems);
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -111,6 +115,7 @@ export default function ProblemsPage() {
   }
 
   const filteredProblems = (showAiResults ? aiSearchResults : problems).filter((problem) => {
+    // Ensure problem.name is a string before calling toLowerCase
     const problemNameLower = problem.name ? problem.name.toLowerCase() : '';
     const problemIdLower = problem.id ? problem.id.toLowerCase() : '';
     const searchTermLower = searchTerm.toLowerCase();

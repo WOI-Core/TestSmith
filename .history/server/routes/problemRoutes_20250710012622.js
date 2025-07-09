@@ -6,8 +6,6 @@ const router = express.Router();
 
 router.get('/from-storage', ProblemController.getProblemsFromStorage);
 
-router.get('/details-from-storage/:problem_id', ProblemController.getProblemDetailsFromStorage);
-
 router.get('/', ProblemController.getAllProblems);
 
 router.get('/:id', ProblemController.getProblemById);

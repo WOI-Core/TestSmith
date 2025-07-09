@@ -5,7 +5,7 @@ const nextConfig = {
       // Rule ที่ 1: ชี้ request สำหรับการค้นหาไปยัง searchsmith service ที่ถูกต้อง
       {
         source: "/api/problems/search",
-        destination: "http://127.0.0.1:8001/v1/query", // แก้ไข port เป็น 8000 และ path เป็น /v1/query
+        destination: "http://127.0.0.1:8000/v1/query", // แก้ไข port เป็น 8000 และ path เป็น /v1/query
       },
       // Rule ที่ 2: สำหรับ toolsmith service (ถ้ามี)
       {

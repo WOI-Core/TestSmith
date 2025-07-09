@@ -1,0 +1,10 @@
+# requirements.txt
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic-settings
+supabase
+langchain
+langchain-google-genai
+langgraph
+python-multipart

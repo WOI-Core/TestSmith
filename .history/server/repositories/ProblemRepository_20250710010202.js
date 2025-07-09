@@ -1,4 +1,3 @@
-// server/repositories/ProblemRepository.js
 const BaseRepository = require('./BaseRepository');
 
 class ProblemRepository extends BaseRepository {
@@ -9,8 +8,8 @@ class ProblemRepository extends BaseRepository {
     async getAll() {
         const { data, error } = await this.supabase
             .from(this.tableName)
-            .select('problem_id, problem_name, difficulty, is_tagged, tags, embedding') // Changed embedding_vector to embedding
-            .order('problem_id', { ascending: true });
+            .select('problem_id, problem_name, markdown_content, solution_code, difficulty, is_tagged, tags, embedding')
+            .order('problem_id', { ascending: true }); // Changed 'id' to 'problem_id'
 
         if (error) {
             console.error('Error fetching all problems:', error.message);
@@ -23,14 +22,11 @@ class ProblemRepository extends BaseRepository {
     async getById(problemId) {
         const { data, error } = await this.supabase
             .from(this.tableName)
-            .select('problem_id, problem_name, difficulty, is_tagged, tags, embedding') // Changed embedding_vector to embedding
-            .eq('problem_id', problemId)
+            .select('problem_id, problem_name, markdown_content, solution_code, difficulty, is_tagged, tags, embedding')
+            .eq('problem_id', problemId) // Changed 'id' to 'problem_id'
             .single();
 
         if (error) {
-            if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
-                return null;
-            }
             console.error('Error fetching problem by ID:', error.message);
             throw error;
         }
@@ -39,15 +35,17 @@ class ProblemRepository extends BaseRepository {
     }
 
     async create(problemData) {
-        const { name, difficulty } = problemData;
+        const { name, statement, solution, difficulty } = problemData;
         const { data, error } = await this.supabase
             .from(this.tableName)
             .insert([{ 
                 problem_name: name, 
+                markdown_content: statement, 
+                solution_code: solution, 
                 difficulty,
                 is_tagged: false,
                 tags: null,
-                embedding: null // Changed embedding_vector to embedding
+                embedding_vector: null
             }]);
 
         if (error) {
@@ -57,30 +55,10 @@ class ProblemRepository extends BaseRepository {
         return data;
     }
 
-    async createFromBucket(problemData) {
-        const { problem_id, name, difficulty } = problemData;
-        const { data, error } = await this.supabase
-            .from(this.tableName)
-            .insert([{ 
-                problem_id: problem_id,
-                problem_name: name, 
-                difficulty,
-                is_tagged: false,
-                tags: null,
-                embedding: null // Changed embedding_vector to embedding
-            }]);
-
-        if (error) {
-            console.error('Supabase CreateFromBucket Error:', error);
-            throw new Error('Failed to create problem from bucket metadata in database.');
-        }
-        return data;
-    }
-
     async findUntagged() {
         const { data, error } = await this.supabase
             .from(this.tableName)
-            .select('problem_id, problem_name, difficulty, is_tagged, tags, embedding') // Changed embedding_vector to embedding
+            .select('problem_id, problem_name, markdown_content, solution_code, difficulty, is_tagged, tags, embedding') // Changed 'id' to 'problem_id'
             .eq('is_tagged', false);
 
         if (error) {
@@ -94,7 +72,7 @@ class ProblemRepository extends BaseRepository {
         const { data, error } = await this.supabase
             .from(this.tableName)
             .update(updates)
-            .eq('problem_id', problemId)
+            .eq('problem_id', problemId) // Changed 'id' to 'problem_id'
             .select()
             .single();
 

@@ -2,7 +2,7 @@
 const ProblemRepository = require('../repositories/ProblemRepository');
 const supabase = require('../config/database');
 const axios = require('axios');
-const SupabaseService = require('../services/SupabaseService'); // ADDED THIS LINE
+const SupabaseService = require('../services/SupabaseService');
 
 class ProblemController {
     static async getAllProblems(req, res, next) {
@@ -27,20 +27,7 @@ class ProblemController {
     }
     
     static async searchProblems(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/search';
-        try {
-            const { query, tags, limit } = req.body;
-            const response = await axios.post(searchsmithUrl, { query, tags, limit });
-            res.status(200).json(response.data);
-        } catch (error) {
-            console.error('Error proxying search to SearchSmith:', error.message);
-            if (error.response) {
-                console.error('SearchSmith Response Error:', error.response.data);
-                res.status(error.response.status).json(error.response.data);
-            } else {
-                next(new Error("Failed to connect to SearchSmith service for search."));
-            }
-        }
+        res.status(404).json({ message: "Search endpoint should be proxied to SearchSmith service." });
     }
 
     static async createProblem(req, res, next) {
@@ -105,17 +92,6 @@ class ProblemController {
             const markdownContent = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.md`, false);
             const solutionCode = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.cpp`, true);
 
-            let pdfFileName = null;
-            try {
-                const problemFiles = await supabaseService.listFilesInFolder(`${problem_id}/Problems`);
-                const pdfFile = problemFiles.find(file => file.name.endsWith('.pdf'));
-                if (pdfFile) {
-                    pdfFileName = pdfFile.name;
-                }
-            } catch (listError) {
-                console.warn(`Could not list PDF files for problem ${problem_id}:`, listError.message);
-            }
-
             res.status(200).json({
                 id: problem_id,
                 name: problemNameFromConfig,
@@ -125,8 +101,7 @@ class ProblemController {
                 timeLimit: problemConfig.timeLimit,
                 memoryLimit: problemConfig.memoryLimit,
                 note: problemConfig.note,
-                tags: problemConfig.tags || [],
-                pdfFileName: pdfFileName
+                tags: problemConfig.tags || []
             });
 
         } catch (error) {
@@ -136,39 +111,47 @@ class ProblemController {
     }
 
     static async syncWithSearchsmith(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/update-database';
         try {
             const { problem_name, markdown_content, solution_code, problem_id } = req.body;
             const problemRepo = new ProblemRepository(supabase);
-            const supabaseService = new SupabaseService();
+            const supabaseService = new SupabaseService(); // Needed for config download if problem is new to DB
 
+            // First, check if the problem exists in the database
             let problemInDb;
             try {
                 problemInDb = await problemRepo.getById(problem_id);
             } catch (dbGetError) {
-                if (dbGetError.code === 'PGRST116' && dbGetError.details === 'The result contains 0 rows') {
-                    problemInDb = null;
-                } else {
-                    console.error('Error checking problem existence in DB:', dbGetError.message);
-                    throw dbGetError;
-                }
+                // If getById throws, it means no single row was found (either 0 or >1)
+                // We'll treat this as "problem not found in DB" for now.
+                console.warn(`Problem with ID ${problem_id} not found in database. Attempting to create it.`);
+                problemInDb = null;
             }
 
             if (!problemInDb) {
+                // If problem not in DB, fetch config.json to get metadata for creation
                 const configContent = await supabaseService.downloadProblemFile(problem_id, 'config.json');
                 if (!configContent) {
                     throw new Error(`Cannot create problem in DB: config.json not found for problem ID: ${problem_id}`);
                 }
                 const problemConfig = JSON.parse(configContent);
                 
+                // Create the problem in the database
                 const newProblemData = {
-                    problem_id: problem_id,
                     name: problemConfig.title,
                     difficulty: problemConfig.difficulty || 0,
+                    // problem_id will be set by Supabase if it's a UUID/auto-incrementing primary key
+                    // If problem_id is a custom string, you might need to explicitly insert it here
+                    // For now, assuming Supabase handles primary key generation or it's implicitly part of the insert
                 };
+                // If problem_id is a custom string that matches the folder name,
+                // you might need to add it to newProblemData and adjust problemRepo.create
+                // to accept a pre-defined ID. For now, we'll let Supabase generate if it's UUID.
+                // If problem_id from bucket is meant to be the DB primary key, we need to explicitly set it.
+                // Assuming problem_id from bucket IS the primary key for the DB table.
+                newProblemData.problem_id = problem_id; // Explicitly set problem_id for creation
 
                 try {
-                    await problemRepo.createFromBucket(newProblemData);
+                    await problemRepo.createFromBucket(newProblemData); // Use a new create method for this scenario
                     console.log(`Problem ${problem_id} successfully added to database from bucket metadata.`);
                 } catch (createError) {
                     console.error(`Failed to create problem ${problem_id} in database:`, createError.message);
@@ -176,9 +159,10 @@ class ProblemController {
                 }
             }
 
+
             let searchsmithResponse;
             try {
-                searchsmithResponse = await axios.post(searchsmithUrl, {
+                searchsmithResponse = await axios.post('http://localhost:8000/v1/update-database', {
                     problem_name,
                     markdown_content: markdown_content,
                     solution_code: solution_code
@@ -201,12 +185,12 @@ class ProblemController {
                 throw new Error('SearchSmith service returned an unexpected status.');
             }
 
-            const { tags, embedding: embedding_vector } = searchsmithResponse.data.result || {};
+            const { tags, embedding_vector } = searchsmithResponse.data.result || {};
 
             const updates = {
                 is_tagged: true,
                 tags: tags || [],
-                embedding: embedding_vector || null
+                embedding_vector: embedding_vector || null
             };
 
             try {

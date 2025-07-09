@@ -2,7 +2,7 @@
 const ProblemRepository = require('../repositories/ProblemRepository');
 const supabase = require('../config/database');
 const axios = require('axios');
-const SupabaseService = require('../services/SupabaseService'); // ADDED THIS LINE
+const SupabaseService = require('../services/SupabaseService');
 
 class ProblemController {
     static async getAllProblems(req, res, next) {
@@ -27,20 +27,7 @@ class ProblemController {
     }
     
     static async searchProblems(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/search';
-        try {
-            const { query, tags, limit } = req.body;
-            const response = await axios.post(searchsmithUrl, { query, tags, limit });
-            res.status(200).json(response.data);
-        } catch (error) {
-            console.error('Error proxying search to SearchSmith:', error.message);
-            if (error.response) {
-                console.error('SearchSmith Response Error:', error.response.data);
-                res.status(error.response.status).json(error.response.data);
-            } else {
-                next(new Error("Failed to connect to SearchSmith service for search."));
-            }
-        }
+        res.status(404).json({ message: "Search endpoint should be proxied to SearchSmith service." });
     }
 
     static async createProblem(req, res, next) {
@@ -105,6 +92,7 @@ class ProblemController {
             const markdownContent = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.md`, false);
             const solutionCode = await supabaseService.downloadProblemFile(problem_id, `${problemNameFromConfig}.cpp`, true);
 
+            // Find PDF file dynamically
             let pdfFileName = null;
             try {
                 const problemFiles = await supabaseService.listFilesInFolder(`${problem_id}/Problems`);
@@ -126,7 +114,7 @@ class ProblemController {
                 memoryLimit: problemConfig.memoryLimit,
                 note: problemConfig.note,
                 tags: problemConfig.tags || [],
-                pdfFileName: pdfFileName
+                pdfFileName: pdfFileName // Include the found PDF filename
             });
 
         } catch (error) {
@@ -136,11 +124,9 @@ class ProblemController {
     }
 
     static async syncWithSearchsmith(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/update-database';
         try {
             const { problem_name, markdown_content, solution_code, problem_id } = req.body;
             const problemRepo = new ProblemRepository(supabase);
-            const supabaseService = new SupabaseService();
 
             let problemInDb;
             try {
@@ -178,7 +164,7 @@ class ProblemController {
 
             let searchsmithResponse;
             try {
-                searchsmithResponse = await axios.post(searchsmithUrl, {
+                searchsmithResponse = await axios.post('http://localhost:8001/v1/update-database', {
                     problem_name,
                     markdown_content: markdown_content,
                     solution_code: solution_code
