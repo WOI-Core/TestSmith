@@ -16,7 +16,7 @@ export default function Header() {
   const { user, logout } = useAuth()
 
   return (
-    <header className="w-full border-b border-purple-100 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-purple-100 bg-white/80 backdrop-blur-md">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -29,8 +29,8 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Centered Navigation */}
-          <nav className="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-8">
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-8">
             <Link href="/problems" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">
               Problems
             </Link>
