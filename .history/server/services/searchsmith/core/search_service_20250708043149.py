@@ -7,7 +7,7 @@ class SearchService:
         self.gemini_service = GeminiService()
         self.supabase_service = SupabaseService()
 
-    def hybrid_search(self, query: str, top_k: int = 10):
+    def hybrid_search(self, query: str, top_k: int = 5):
         """
         ทำการ Hybrid-Semantic Search โดยมีการทำ Query Expansion
         """
