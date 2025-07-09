@@ -33,10 +33,13 @@ class UserRepository extends BaseRepository {
       .from(this.tableName)
       .select('*')
       .eq('id', userId)
-      .single();
+      .single(); // .single() returns one record or throws an error if not found
 
-    if (error && error.code !== 'PGRST116') { // Don't log "not found" errors
-      console.error('[UserRepository] Error finding user by ID:', error);
+    if (error) {
+      // Don't log "not found" errors as they are expected
+      if (error.code !== 'PGRST116') {
+        console.error('[UserRepository] Error finding user by ID:', error);
+      }
     }
     return data;
   }
@@ -47,7 +50,14 @@ class UserRepository extends BaseRepository {
   async createUser(id, username, email) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .insert([{ id, username, email, role: 'user' }])
+      .insert([
+        {
+          id: id,
+          username: username,
+          email: email,
+          role: 'user',
+        },
+      ])
       .select()
       .single();
 

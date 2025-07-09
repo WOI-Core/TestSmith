@@ -9,28 +9,28 @@ export default function LeaderboardPage() {
 useEffect(() => {
     fetch('/api/progress/leaderboard')
         .then(res => {
+            // First, check if the response was successful
             if (!res.ok) {
                 throw new Error(`HTTP error! Status: ${res.status}`);
             }
             return res.json();
         })
-        .then(apiResponse => {
-            // Check if the response was successful and the data exists
-            if (apiResponse.success && apiResponse.data && Array.isArray(apiResponse.data.leaderboard)) {
-                // Set the state with the nested leaderboard array
-                setLeaderboard(apiResponse.data.leaderboard);
+        .then(data => {
+            // The 'data' from the API is the array itself.
+            // We check if it's an array before setting the state.
+            if (Array.isArray(data)) {
+                setLeaderboard(data);
             } else {
-                // If the structure is wrong, log an error and set an empty array
-                console.error("Unexpected API response structure:", apiResponse);
-                setLeaderboard([]);
+                // Log an error if the data is not in the expected format
+                console.error("Leaderboard data is not an array:", data);
             }
         })
         .catch(error => {
+            // Catch and log any errors during the fetch
             console.error("Failed to load leaderboard:", error);
-            // Ensure leaderboard is an empty array on error
-            setLeaderboard([]); 
         })
         .finally(() => {
+            // This will run regardless of success or failure
             setLoading(false);
         });
 }, []);

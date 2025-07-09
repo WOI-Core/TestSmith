@@ -6,34 +6,16 @@ export default function LeaderboardPage() {
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-    fetch('/api/progress/leaderboard')
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`HTTP error! Status: ${res.status}`);
-            }
-            return res.json();
-        })
-        .then(apiResponse => {
-            // Check if the response was successful and the data exists
-            if (apiResponse.success && apiResponse.data && Array.isArray(apiResponse.data.leaderboard)) {
-                // Set the state with the nested leaderboard array
-                setLeaderboard(apiResponse.data.leaderboard);
-            } else {
-                // If the structure is wrong, log an error and set an empty array
-                console.error("Unexpected API response structure:", apiResponse);
-                setLeaderboard([]);
-            }
-        })
-        .catch(error => {
-            console.error("Failed to load leaderboard:", error);
-            // Ensure leaderboard is an empty array on error
-            setLeaderboard([]); 
-        })
-        .finally(() => {
-            setLoading(false);
-        });
-}, []);
+    useEffect(() => {
+        fetch('/api/progress/leaderboard')
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    setLeaderboard(data.data.leaderboard);
+                }
+            })
+            .finally(() => setLoading(false));
+    }, []);
 
     if (loading) {
         return <p className="p-8 text-center">Loading leaderboard...</p>;

@@ -10,10 +10,10 @@ const router = express.Router()
 // POST /api/progress - Save user progress
 router.post("/", ProgressController.saveProgress)
 
-// The specific route for the leaderboard now comes first
-router.get('/leaderboard', ProgressController.getLeaderboard);
+// GET /api/progress/:userId - Get user progress
+router.get("/:userId", ProgressController.getUserProgress)
 
-// The general route for a user's progress comes second
-router.get('/:userId', ProgressController.getUserProgress);
+// GET /api/progress/leaderboard - Get leaderboard
+router.get("/leaderboard", ProgressController.getLeaderboard)
 
 module.exports = router

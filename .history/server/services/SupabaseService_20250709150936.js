@@ -12,7 +12,9 @@ class SupabaseService {
   }
 
   /**
+   * NEW FUNCTION
    * Get the list of problems from the storage bucket.
+   * It filters out any file that isn't a directory (e.g., placeholder files).
    */
   async getProblemList() {
     const { data, error } = await this.storage.from('problems').list();
@@ -21,39 +23,18 @@ class SupabaseService {
       console.error('[SupabaseService] Error listing problems:', error);
       return [];
     }
-    
+
+    // Supabase's list function returns folders as items with id: null.
+    // We filter to get only these directory entries.
     const problemFolders = data.filter(item => item.id === null);
+
     return problemFolders;
   }
 
   /**
-   * NEW FUNCTION
-   * Get the configuration JSON for a specific problem.
-   * @param {string} problemName - The name of the problem folder.
-   */
-  async getProblemConfig(problemName) {
-    const filePath = `${problemName}/config.json`;
-    const { data, error } = await this.storage.from('problems').download(filePath);
-
-    if (error) {
-      console.error(`[SupabaseService] Error fetching config for ${problemName}:`, error);
-      return null;
-    }
-
-    // The downloaded data is a Blob, so we need to read it as text and parse it as JSON
-    try {
-      const configText = await data.text();
-      const configJson = JSON.parse(configText);
-      return configJson;
-    } catch (parseError) {
-      console.error(`[SupabaseService] Error parsing config for ${problemName}:`, parseError);
-      return null;
-    }
-  }
-
-
-  /**
    * List files in a Supabase Storage bucket
+   * @param {string} bucketName - The name of the bucket
+   * @param {string} folderPath - The path to the folder within the bucket
    */
   async listFiles(bucketName, folderPath = '') {
     const { data, error } = await this.storage
@@ -69,6 +50,8 @@ class SupabaseService {
 
   /**
    * Get public URL for a file in Supabase Storage
+   * @param {string} bucketName - The name of the bucket
+   * @param {string} filePath - The path to the file
    */
   getPublicUrl(bucketName, filePath) {
     const { data } = this.storage

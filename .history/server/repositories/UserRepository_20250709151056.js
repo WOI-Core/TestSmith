@@ -6,7 +6,7 @@ const BaseRepository = require('./BaseRepository');
 
 class UserRepository extends BaseRepository {
   constructor() {
-    super('users');
+    super('users'); // This calls the constructor of BaseRepository
   }
 
   /**
@@ -17,7 +17,7 @@ class UserRepository extends BaseRepository {
       .from(this.tableName)
       .select('*')
       .or(`username.eq.${username},email.eq.${email}`)
-      .maybeSingle();
+      .maybeSingle(); // .maybeSingle() returns one record or null, preventing errors
 
     if (error) {
       console.error('[UserRepository] Error finding user:', error);
@@ -26,28 +26,20 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * Find a user by their ID
-   */
-  async findById(userId) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // Don't log "not found" errors
-      console.error('[UserRepository] Error finding user by ID:', error);
-    }
-    return data;
-  }
-
-  /**
    * Create a new user in the database
    */
-  async createUser(id, username, email) {
+  async createUser(id, username, email, hashedPassword) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .insert([{ id, username, email, role: 'user' }])
+      .insert([
+        {
+          id: id, // Make sure to insert the user's auth ID
+          username: username,
+          email: email,
+          password_hash: hashedPassword,
+          role: 'user', // Default role
+        },
+      ])
       .select()
       .single();
 
