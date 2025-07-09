@@ -1,5 +1,4 @@
 "use client"
-
 import Link from "next/link"
 import { useAuth } from "../context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -41,16 +40,16 @@ export default function Header() {
             <Link href="/leaderboard" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">
               Leaderboard
             </Link>
-            <Link
-              href="/upload"
-              className="text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center space-x-1"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Upload</span>
-            </Link>
             <Link href="/toolsmith" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">
               ToolSmith
             </Link>
+            {/* Conditionally render Upload link for admins */}
+            {user && user.role === "admin" && (
+              <Link href="/upload" className="text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center">
+                 <Upload className="mr-1 h-4 w-4" />
+                Upload
+              </Link>
+            )}
           </nav>
 
           {/* User Actions */}

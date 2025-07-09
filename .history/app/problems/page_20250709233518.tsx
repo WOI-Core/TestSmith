@@ -39,12 +39,32 @@ export default function ProblemsPage() {
     const fetchProblems = async () => {
       setLoading(true)
       try {
-        const response = await fetch('/api/problems');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch problems: ${response.statusText}`);
-        }
-        const data = await response.json();
-        setProblems(data);
+        // Mock data for demo
+        const mockProblems: Problem[] = [
+          { id: "1A", name: "Theatre Square", tags: ["math"], difficulty: 1000, solvers: 50000, solved: false },
+          { id: "4A", name: "Watermelon", tags: ["brute force"], difficulty: 800, solvers: 45000, solved: true },
+          { id: "71A", name: "Way Too Long Words", tags: ["strings"], difficulty: 800, solvers: 40000, solved: false },
+          { id: "158A", name: "Next Round", tags: ["implementation"], difficulty: 800, solvers: 35000, solved: false },
+          { id: "231A", name: "Team", tags: ["brute force"], difficulty: 800, solvers: 30000, solved: true },
+          { id: "282A", name: "Bit++", tags: ["implementation"], difficulty: 800, solvers: 28000, solved: false },
+          {
+            id: "339A",
+            name: "Helpful Maths",
+            tags: ["greedy", "implementation"],
+            difficulty: 800,
+            solvers: 25000,
+            solved: false,
+          },
+          {
+            id: "112A",
+            name: "Petya and Strings",
+            tags: ["implementation", "strings"],
+            difficulty: 800,
+            solvers: 22000,
+            solved: true,
+          },
+        ]
+        setProblems(mockProblems)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -61,30 +81,13 @@ export default function ProblemsPage() {
     setError(null)
 
     try {
-      // This is the corrected fetch path to match your next.config.mjs proxy
-      const response = await fetch('/api/problems/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: aiSearchQuery }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI search failed: ${response.statusText}`);
-      }
-      
-      const results = await response.json();
-      const recommendedNames: string[] = results.recommended_problems || [];
-      
-      const newFiltered = problems
-        .filter(problem => recommendedNames.includes(problem.name))
-        .map(problem => ({
-            ...problem,
-            relevance: Math.floor(Math.random() * 10) + 90, // Add mock relevance
-            reason: `Relevant for practicing ${problem.tags[0] || 'concepts'}.` // Add mock reason
-        }));
-
-      setAiSearchResults(newFiltered);
-
+      // Mock AI search results
+      const mockResults = problems.slice(0, 3).map((problem) => ({
+        ...problem,
+        relevance: Math.floor(Math.random() * 30) + 70,
+        reason: "Good for practicing " + problem.tags[0],
+      }))
+      setAiSearchResults(mockResults)
     } catch (err: any) {
       console.error("AI Search failed:", err)
       setError(err.message)
@@ -126,6 +129,7 @@ export default function ProblemsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="w-full px-6 py-6">
+        {/* SearchSmith - Full width at top */}
         <Card className="shadow-sm mb-6 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center">
@@ -172,7 +176,9 @@ export default function ProblemsPage() {
           </CardContent>
         </Card>
 
+        {/* Main Layout: Problems table (left-center) + Sidebar (right) */}
         <div className="flex gap-6">
+          {/* Main Problems Area - Takes most of the width */}
           <div className="flex-1">
             <Card className="shadow-sm">
               <CardHeader className="pb-4">
@@ -247,7 +253,9 @@ export default function ProblemsPage() {
             </Card>
           </div>
 
+          {/* Compact Right Sidebar - Fixed width */}
           <div className="w-80 flex-shrink-0 space-y-4">
+            {/* Contest Alert */}
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-blue-800 flex items-center">
@@ -266,6 +274,7 @@ export default function ProblemsPage() {
               </CardContent>
             </Card>
 
+            {/* Filter Card */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium">Filter</CardTitle>
@@ -301,6 +310,7 @@ export default function ProblemsPage() {
               </CardContent>
             </Card>
 
+            {/* Settings Card */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium">Settings</CardTitle>
@@ -329,6 +339,7 @@ export default function ProblemsPage() {
               </CardContent>
             </Card>
 
+            {/* Last Unsolved Card */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center">

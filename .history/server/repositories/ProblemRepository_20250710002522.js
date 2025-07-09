@@ -39,9 +39,9 @@ class ProblemRepository extends BaseRepository {
         const { data, error } = await this.supabase
             .from(this.tableName)
             .insert([{ 
-                problem_name: name, 
-                markdown_content: statement, 
-                solution_code: solution, 
+                nproblem_name: name, 
+                statement, 
+                solution, 
                 difficulty,
                 is_tagged: false
             }])

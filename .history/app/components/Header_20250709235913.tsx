@@ -1,5 +1,4 @@
 "use client"
-
 import Link from "next/link"
 import { useAuth } from "../context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { User, LogOut, Settings, Trophy, Code, Upload } from "lucide-react"
+import { User, LogOut, Settings, Trophy, Code } from "lucide-react"
 
 export default function Header() {
   const { user, logout } = useAuth()
@@ -40,13 +39,6 @@ export default function Header() {
             </Link>
             <Link href="/leaderboard" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">
               Leaderboard
-            </Link>
-            <Link
-              href="/upload"
-              className="text-gray-700 hover:text-purple-600 font-medium transition-colors flex items-center space-x-1"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Upload</span>
             </Link>
             <Link href="/toolsmith" className="text-gray-700 hover:text-purple-600 font-medium transition-colors">
               ToolSmith

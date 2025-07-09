@@ -41,7 +41,7 @@ class ProblemRepository extends BaseRepository {
             .insert([{ 
                 problem_name: name, 
                 markdown_content: statement, 
-                solution_code: solution, 
+                solution, 
                 difficulty,
                 is_tagged: false
             }])

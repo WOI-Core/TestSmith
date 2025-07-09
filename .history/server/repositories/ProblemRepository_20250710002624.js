@@ -40,8 +40,8 @@ class ProblemRepository extends BaseRepository {
             .from(this.tableName)
             .insert([{ 
                 problem_name: name, 
-                markdown_content: statement, 
-                solution_code: solution, 
+                markdown_contentstatement, 
+                solution, 
                 difficulty,
                 is_tagged: false
             }])

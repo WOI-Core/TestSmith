@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useAuth } from "../context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -14,8 +13,6 @@ import {
 import { User, LogOut, Settings, Trophy, Code, Upload } from "lucide-react"
 
 export default function Header() {
-  const { user, logout } = useAuth()
-
   return (
     <header className="w-full border-b border-purple-100 bg-white/80 backdrop-blur-md">
       <div className="container mx-auto px-4">

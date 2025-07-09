@@ -61,8 +61,7 @@ export default function ProblemsPage() {
     setError(null)
 
     try {
-      // This is the corrected fetch path to match your next.config.mjs proxy
-      const response = await fetch('/api/problems/search', {
+      const response = await fetch('/api/search/v1/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: aiSearchQuery }),

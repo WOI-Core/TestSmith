@@ -352,7 +352,7 @@ export default function ProblemsPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </card>
           </div>
         </div>
       </div>
