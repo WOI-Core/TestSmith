@@ -217,23 +217,6 @@ export default function ProblemsPage() {
             </Card>
           </div>
           <div className="space-y-6">
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-blue-800 flex items-center">
-                  <ChevronRight className="h-4 w-4 mr-1" />
-                  Pay attention
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-sm">
-                  <div className="font-medium text-blue-900 mb-1">Before contest</div>
-                  <Link href="#" className="text-blue-600 hover:underline">
-                    Codeforces Round (Div. 1 + Div. 2)
-                  </Link>
-                  <div className="text-xs text-blue-700 mt-1">10 days</div>
-                </div>
-              </CardContent>
-            </Card>
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Filter</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -261,30 +244,6 @@ export default function ProblemsPage() {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="hide-solved" checked={hideSolvedProblems} onCheckedChange={(checked) => setHideSolvedProblems(Boolean(checked))} />
                   <label htmlFor="hide-solved" className="text-sm">Hide solved</label>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <ChevronRight className="h-4 w-4 mr-1" />
-                  Last unsolved
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-medium text-gray-600">
-                    <span>#</span>
-                    <span>Name</span>
-                    <span>Last submission</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-blue-600">372A</span>
-                    <Link href="#" className="text-blue-600 hover:underline flex-1 mx-2 truncate">
-                      Counting Kangaroos is Fun
-                    </Link>
-                    <span className="text-xs text-gray-500">309986550</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
