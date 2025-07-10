@@ -2,7 +2,7 @@
 const ProblemRepository = require('../repositories/ProblemRepository');
 const supabase = require('../config/database');
 const axios = require('axios');
-const SupabaseService = require('../services/SupabaseService'); // ADDED THIS LINE
+const SupabaseService = require('../services/SupabaseService');
 
 class ProblemController {
     static async getAllProblems(req, res, next) {
@@ -33,9 +33,7 @@ class ProblemController {
             const response = await axios.post(searchsmithUrl, { query, tags, limit });
             res.status(200).json(response.data);
         } catch (error) {
-            console.error('Error proxying search to SearchSmith:', error.message);
             if (error.response) {
-                console.error('SearchSmith Response Error:', error.response.data);
                 res.status(error.response.status).json(error.response.data);
             } else {
                 next(new Error("Failed to connect to SearchSmith service for search."));
@@ -69,9 +67,6 @@ class ProblemController {
                     note: problemData.note || "No specific notes."
                 }, null, 2);
                 await supabaseService.uploadProblemConfig(newProblem.problem_id, configContent);
-
-            } else {
-                console.warn('Problem created in DB but problem_id was not returned, skipping file upload.');
             }
 
             res.status(201).json(newProblem);
@@ -82,6 +77,7 @@ class ProblemController {
 
     static async getProblemsFromStorage(req, res, next) {
         try {
+            res.set("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
             const supabaseService = new SupabaseService();
             const problems = await supabaseService.getProblemList();
             res.status(200).json(problems);
@@ -112,8 +108,7 @@ class ProblemController {
                 if (pdfFile) {
                     pdfFileName = pdfFile.name;
                 }
-            } catch (listError) {
-                console.warn(`Could not list PDF files for problem ${problem_id}:`, listError.message);
+            } catch {
             }
 
             res.status(200).json({
@@ -128,9 +123,7 @@ class ProblemController {
                 tags: problemConfig.tags || [],
                 pdfFileName: pdfFileName
             });
-
         } catch (error) {
-            console.error('[Get Problem Details From Storage Error]', error.message);
             next(new Error("Failed to retrieve problem details from storage."));
         }
     }
@@ -146,12 +139,7 @@ class ProblemController {
             try {
                 problemInDb = await problemRepo.getById(problem_id);
             } catch (dbGetError) {
-                if (dbGetError.code === 'PGRST116' && dbGetError.details === 'The result contains 0 rows') {
-                    problemInDb = null;
-                } else {
-                    console.error('Error checking problem existence in DB:', dbGetError.message);
-                    throw dbGetError;
-                }
+                problemInDb = null;
             }
 
             if (!problemInDb) {
@@ -166,38 +154,16 @@ class ProblemController {
                     name: problemConfig.title,
                     difficulty: problemConfig.difficulty || 0,
                 };
-
-                try {
-                    await problemRepo.createFromBucket(newProblemData);
-                    console.log(`Problem ${problem_id} successfully added to database from bucket metadata.`);
-                } catch (createError) {
-                    console.error(`Failed to create problem ${problem_id} in database:`, createError.message);
-                    throw new Error(`Failed to onboard problem ${problem_id} into database.`);
-                }
+                await problemRepo.createFromBucket(newProblemData);
             }
 
-            let searchsmithResponse;
-            try {
-                searchsmithResponse = await axios.post(searchsmithUrl, {
-                    problem_name,
-                    markdown_content: markdown_content,
-                    solution_code: solution_code
-                });
-            } catch (axiosError) {
-                if (axiosError.response) {
-                    console.error('Error response from SearchSmith:', axiosError.response.data);
-                    console.error('Error response status:', axiosError.response.status);
-                } else if (axiosError.request) {
-                    console.error('No response received from SearchSmith:', axiosError.request);
-                } else {
-                    console.error('Error setting up SearchSmith request:', axiosError.message);
-                }
-                throw new Error("Failed to sync with SearchSmith service due to API error.");
-            }
+            const searchsmithResponse = await axios.post(searchsmithUrl, {
+                problem_name,
+                markdown_content: markdown_content,
+                solution_code: solution_code
+            });
             
             if (searchsmithResponse.status !== 200) {
-                console.error('SearchSmith service returned non-200 status:', searchsmithResponse.status);
-                console.error('SearchSmith response data:', searchsmithResponse.data);
                 throw new Error('SearchSmith service returned an unexpected status.');
             }
 
@@ -209,18 +175,10 @@ class ProblemController {
                 embedding: embedding_vector || null
             };
 
-            try {
-                await problemRepo.updateProblem(problem_id, updates);
-                console.log('Successfully updated problem metadata in Supabase table.');
-            } catch (dbUpdateError) {
-                console.error(`Failed to update problem ${problem_id} metadata in database:`, dbUpdateError.message);
-                throw new Error("Failed to update problem metadata in database after SearchSmith sync.");
-            }
+            await problemRepo.updateProblem(problem_id, updates);
 
             res.status(200).json(searchsmithResponse.data);
-
         } catch (error) {
-            console.error('[Sync Error]', error.message);
             next(new Error("Failed to sync with SearchSmith service."));
         }
     }
