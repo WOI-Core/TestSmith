@@ -9,11 +9,7 @@ const nextConfig = {
       },
       // Rule ที่ 2: สำหรับ toolsmith service (ถ้ามี)
       {
-        source: "/api/toolsmith",
-        destination: "http://127.0.0.1:8000/generate-preview",
-      },
-      {
-        source: "/api/toolsmith/:path*",
+        source: "/api/tools/:path*",
         destination: "http://127.0.0.1:8000/:path*",
       },
       // Rule ที่ 3: Rule ทั่วไปสำหรับ API อื่นๆ ให้ชี้ไปที่ Backend หลัก

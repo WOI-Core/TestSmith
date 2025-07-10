@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw, Send } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 
 interface UntaggedProblem {
   id: string;
@@ -96,34 +95,23 @@ export default function UploadPage() {
     }
   };
 
-  const fetchFile = async (path: string) => {
-    const { data, error } = await supabase.storage.from("problems").download(path);
-    if (error || !data) throw new Error(error?.message || "Download error");
-    return await data.text();
-  };
-
   const handleTag = async (problem: UntaggedProblem) => {
     try {
-      const md = await fetchFile(`${problem.name}/Problems/${problem.name}.md`);
-      const sol = await fetchFile(`${problem.name}/Solutions/${problem.name}.cpp`);
-      await fetch("http://localhost:8000/v1/update-database", {
+      const res = await fetch("/api/problems", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          problem_name: problem.name,
-          markdown_content: md,
-          solution_code: sol,
+          name: problem.name,
+          statement: "",
+          solution: "",
+          difficulty: problem.difficulty,
+          tags: problem.tags,
         }),
       });
-      await fetch("http://localhost:8001/v1/update-database", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problem_name: problem.name,
-          markdown_content: md,
-          solution_code: sol,
-        }),
-      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to tag problem");
+      }
       toast({ title: "Tagged", description: `${problem.name} saved.`, variant: "success" });
       fetchUntaggedProblems();
     } catch (err: any) {
@@ -144,28 +132,37 @@ export default function UploadPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleGenerate} className="flex flex-col gap-4 p-4 bg-card-bg rounded-lg">
-            <Input
-              placeholder="Content Name (e.g. prime_checker)"
-              value={contentName}
-              onChange={(e) => setContentName(e.target.value)}
-              required
-            />
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              placeholder="Number of Test Cases"
-              value={casesSize}
-              onChange={(e) => setCasesSize(parseInt(e.target.value))}
-              required
-            />
-            <Textarea
-              placeholder="Problem Description"
-              value={detail}
-              onChange={(e) => setDetail(e.target.value)}
-              rows={5}
-              required
-            />
+            <div>
+              <Input
+                id="contentName"
+                placeholder="Content Name (e.g. prime_checker)"
+                value={contentName}
+                onChange={(e) => setContentName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Input
+                id="casesSize"
+                type="number"
+                min={1}
+                max={20}
+                placeholder="Number of Test Cases"
+                value={casesSize}
+                onChange={(e) => setCasesSize(parseInt(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              <Textarea
+                id="detail"
+                placeholder="Problem Description"
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                rows={5}
+                required
+              />
+            </div>
             <Button type="submit" disabled={generating}>
               {generating ? "Generating..." : "Generate and Download ZIP"}
             </Button>

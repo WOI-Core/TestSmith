@@ -103,18 +103,6 @@ export default function UploadPage() {
   };
 
   const handleTag = async (problem: UntaggedProblem) => {
-    try {
-      const md = await fetchFile(`${problem.name}/Problems/${problem.name}.md`);
-      const sol = await fetchFile(`${problem.name}/Solutions/${problem.name}.cpp`);
-      await fetch("http://localhost:8000/v1/update-database", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problem_name: problem.name,
-          markdown_content: md,
-          solution_code: sol,
-        }),
-      });
       await fetch("http://localhost:8001/v1/update-database", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
