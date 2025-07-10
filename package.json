@@ -54,6 +54,7 @@
     "http-proxy-middleware": "latest",
     "input-otp": "1.4.1",
     "joi": "latest",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",
     "multer": "latest",
     "next": "15.2.4",

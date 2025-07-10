@@ -1,9 +1,9 @@
 // app/problems/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { Users, ChevronRight, Search, Sparkles } from "lucide-react"
+import { Users, ChevronRight, Search, Sparkles, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,31 +36,46 @@ export default function ProblemsPage() {
   const [aiSearching, setAiSearching] = useState(false)
   const [showAiResults, setShowAiResults] = useState(false)
 
-  useEffect(() => {
-    const fetchProblems = async () => {
-      setLoading(true)
-      try {
-        // Changed to fetch from the /from-storage endpoint
-        const response = await fetch('/api/problems/from-storage');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch problems from storage: ${response.statusText}`);
-        }
-        const data: Problem[] = await response.json();
-        // Add mock data for solvers and solved as they are not in config.json
-        const problemsWithMockData = data.map(problem => ({
-          ...problem,
-          solvers: Math.floor(Math.random() * 100) + 1, // Mock solvers
-          solved: Math.random() > 0.5, // Mock solved status
-        }));
-        setProblems(problemsWithMockData);
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+  const fetchProblems = useCallback(async () => {
+    setLoading(true)
+    setError(null); // Reset error on new fetch
+    try {
+      const response = await fetch('/api/problems/from-storage');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch problems. Server responded with status ${response.status}: ${errorText}`);
       }
+      
+      let data;
+      try {
+          data = await response.json();
+      } catch (jsonError) {
+          console.error("Failed to parse JSON from /api/problems/from-storage:", jsonError);
+          throw new Error("The API did not return valid JSON. Please check the backend endpoint to ensure it sends a correctly formatted JSON array.");
+      }
+
+      if (Array.isArray(data)) {
+          const problemsWithMockData = data.map(problem => ({
+            ...problem,
+            solvers: Math.floor(Math.random() * 100) + 1,
+            solved: Math.random() > 0.5,
+          }));
+          setProblems(problemsWithMockData);
+      } else {
+          console.warn("Received non-array data from storage API:", data);
+          throw new Error("The API did not return a JSON array as expected.");
+      }
+
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
+  }, []);
+
+  useEffect(() => {
     fetchProblems()
-  }, [])
+  }, [fetchProblems])
 
   const handleAiSearch = async () => {
     if (!aiSearchQuery.trim()) return
@@ -135,6 +150,27 @@ export default function ProblemsPage() {
     )
   }
 
+  if (error) {
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+            <Card className="w-full max-w-lg border-red-200 bg-red-50">
+                <CardHeader>
+                    <CardTitle className="text-red-700 flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-2" />
+                        Error Loading Problems
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-red-600 font-mono bg-red-100 p-3 rounded-md">{error}</p>
+                    <Button onClick={() => fetchProblems()} className="mt-4 w-full">
+                        Try Again
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="w-full px-6 py-6">
@@ -205,53 +241,61 @@ export default function ProblemsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredProblems.map((problem) => (
-                        <TableRow key={problem.id}>
-                          <TableCell className="font-medium">
-                            <Link href={`/problem?id=${problem.id}`} className="text-blue-600 hover:underline">
-                              {problem.id}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <Link
-                                href={`/problem?id=${problem.id}`}
-                                className="text-blue-600 hover:underline font-medium"
-                              >
-                                {problem.name}
+                      {filteredProblems.length > 0 ? (
+                        filteredProblems.map((problem) => (
+                          <TableRow key={problem.id}>
+                            <TableCell className="font-medium">
+                              <Link href={`/problem?id=${problem.id}`} className="text-blue-600 hover:underline">
+                                {problem.id}
                               </Link>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {problem.tags.map((tag, index) => (
-                                  <span key={index} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                              {showAiResults && problem.reason && (
-                                <div className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-1">
-                                  💡 {problem.reason}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          {showAiResults && (
-                            <TableCell className="text-center">
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                {problem.relevance}%
-                              </Badge>
                             </TableCell>
-                          )}
-                          <TableCell className={`text-center font-medium ${getDifficultyColor(problem.difficulty)}`}>
-                            {problem.difficulty}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center space-x-1">
-                              <Users className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm text-blue-600">x{problem.solvers || 0}</span>
-                            </div>
+                            <TableCell>
+                              <div>
+                                <Link
+                                  href={`/problem?id=${problem.id}`}
+                                  className="text-blue-600 hover:underline font-medium"
+                                >
+                                  {problem.name}
+                                </Link>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {problem.tags.map((tag, index) => (
+                                    <span key={index} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                                {showAiResults && problem.reason && (
+                                  <div className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-1">
+                                    💡 {problem.reason}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            {showAiResults && (
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                  {problem.relevance}%
+                                </Badge>
+                              </TableCell>
+                            )}
+                            <TableCell className={`text-center font-medium ${getDifficultyColor(problem.difficulty)}`}>
+                              {problem.difficulty}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center space-x-1">
+                                <Users className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm text-blue-600">x{problem.solvers || 0}</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={showAiResults ? 5 : 4} className="text-center h-24 text-gray-500">
+                            No problems found.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>

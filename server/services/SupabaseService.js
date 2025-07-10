@@ -1,4 +1,3 @@
-// server/services/SupabaseService.js
 const supabase = require('../config/database');
 
 class SupabaseService {
@@ -12,16 +11,25 @@ class SupabaseService {
             .list();
 
         if (listError) {
+            console.error("Supabase list error:", listError);
             throw new Error("Failed to list problems from Supabase Storage");
         }
+
+        console.log("--- Supabase fileList Response ---");
+        console.log(fileList);
+        console.log("---------------------------------");
 
         if (!fileList || fileList.length === 0) {
             return [];
         }
 
-        const problemFolders = fileList.filter(item => item.id === null && item.name !== '.emptyFolderPlaceholder');
-
+        const problemFolders = fileList.filter(item => 
+            item.id === null && 
+            item.name !== '.emptyFolderPlaceholder'
+        );
+        
         if (problemFolders.length === 0) {
+            console.log("No folders were found after filtering. The `fileList` might not represent folders with `id: null` anymore. Check the log output above.");
             return [];
         }
 
@@ -32,6 +40,7 @@ class SupabaseService {
                 .download(filePath);
             
             if (downloadError) {
+                console.warn(`Could not download config for ${folder.name}:`, downloadError.message);
                 return null;
             }
 
@@ -45,6 +54,7 @@ class SupabaseService {
                     tags: config.tags || []
                 };
             } catch(e) {
+                console.error(`Error parsing config.json for ${folder.name}:`, e);
                 return null;
             }
         });
@@ -141,16 +151,11 @@ class SupabaseService {
         }
     }
 
-    /**
-     * Lists files within a specific folder inside the 'problems' bucket.
-     * @param {string} folderPath The path to the folder (e.g., 'CombinatorialKingdom/Problems').
-     * @returns {Promise<Array<{name: string, id: string|null}>>} An array of file objects.
-     */
     async listFilesInFolder(folderPath) {
         const { data, error } = await this.storage
             .from('problems')
             .list(folderPath, {
-                limit: 100, // Adjust limit as needed
+                limit: 100,
                 offset: 0,
                 sortBy: { column: 'name', order: 'asc' },
             });
