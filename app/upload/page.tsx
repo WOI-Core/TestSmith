@@ -1,3 +1,4 @@
+// app/upload/page.tsx
 "use client";
 
 import React, { useState, useEffect, FormEvent, useCallback } from "react";
@@ -214,7 +215,9 @@ export default function UploadPage() {
     try {
       const md = await fetchFile(`${problem.name}/Problems/${problem.name}.md`);
       const sol = await fetchFile(`${problem.name}/Solutions/${problem.name}.cpp`);
-      await fetch("http://localhost:8000/v1/update-database", {
+      
+      // FIX: Call a new API route on your Next.js backend instead of localhost directly.
+      const response = await fetch("/api/problems/tag-and-sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -223,16 +226,13 @@ export default function UploadPage() {
           solution_code: sol,
         }),
       });
-      await fetch("http://localhost:8001/v1/update-database", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problem_name: problem.name,
-          markdown_content: md,
-          solution_code: sol,
-        }),
-      });
-      toast({ title: "Tagged", description: `${problem.name} saved.`, variant: "success" });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to tag problem.");
+      }
+
+      toast({ title: "Tagged", description: `${problem.name} saved and synced.`, variant: "success" });
       setUntaggedProblems(problems => problems.filter(p => p.id !== problem.id));
     } catch (err: any) {
       toast({ title: "Error tagging", description: err.message, variant: "destructive" });
