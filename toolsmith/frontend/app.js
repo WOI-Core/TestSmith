@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Upload to Database ---
     uploadButton.addEventListener('click', async () => {
-        if (!lastRequestData) {
+        if (!lastRequestData || !generatedBlob) {
             statusEl.textContent = 'No data to upload. Please generate a problem first.';
             statusEl.classList.add('error');
             return;
@@ -93,11 +93,16 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl.className = 'status-area';
 
         try {
-            // Send only the initial user request data
+            // สร้าง FormData และแนบข้อมูล + ไฟล์
+            const formData = new FormData();
+            formData.append('content_name', lastRequestData.content_name);
+            formData.append('cases_size', lastRequestData.cases_size);
+            formData.append('detail', lastRequestData.detail);
+            formData.append('file', new File([generatedBlob], zipFileName, { type: 'application/zip' }));
+
             const response = await fetch('http://127.0.0.1:8000/upload-task', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lastRequestData),
+                body: formData,
             });
 
             if (!response.ok) {
@@ -105,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.detail || 'Failed to upload.');
             }
 
-            // Handle the success response
             const result = await response.json();
             statusEl.textContent = result.message;
             statusEl.classList.add('success');
@@ -114,24 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
             statusEl.textContent = `Upload failed: ${error.message}`;
             statusEl.classList.add('error');
         } finally {
-            // This part was missing
             uploadButton.disabled = false;
             uploadButton.textContent = 'Approve and Upload to Database';
-        }
-    });
-
-    // --- Download Button ---
-    downloadButton.addEventListener('click', () => {
-        if (generatedBlob) {
-            const url = window.URL.createObjectURL(generatedBlob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = zipFileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
         }
     });
 });
