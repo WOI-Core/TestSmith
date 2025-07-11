@@ -195,17 +195,26 @@ class ProblemController {
 
             // Call SearchSmith service ONLY for generating embeddings and tags
             // DO NOT let it insert into the database
+            console.log('[SYNC_SEARCHSMITH] Calling SearchSmith service...');
             const searchsmithResponse = await axios.post(searchsmithUrl, {
                 problem_name,
                 markdown_content: markdown_content,
                 solution_code: solution_code
             });
             
+            // Log the full response for debugging
+            console.log('[SYNC_SEARCHSMITH] Full SearchSmith response:', searchsmithResponse.data);
+            
             if (searchsmithResponse.status !== 200) {
-                throw new Error('SearchSmith service returned an unexpected status.');
+                throw new Error(`SearchSmith service returned status ${searchsmithResponse.status}: ${searchsmithResponse.statusText}`);
             }
 
-            const { tags, embedding: embedding_vector } = searchsmithResponse.data.result || {};
+            // Extract tags and embedding from the top-level response
+            const { tags, embedding: embedding_vector } = searchsmithResponse.data || {};
+            console.log('[SYNC_SEARCHSMITH] SearchSmith response received:', {
+                tags_count: tags?.length || 0,
+                has_embedding: !!embedding_vector
+            });
 
             // Update the existing Express server record with SearchSmith results
             const updates = {
@@ -230,7 +239,27 @@ class ProblemController {
 
             res.status(200).json(enhancedResponse);
         } catch (error) {
-            next(new Error("Failed to sync with SearchSmith service."));
+            console.error('[SYNC_SEARCHSMITH] Error details:', {
+                message: error.message,
+                code: error.code,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+            
+            if (error.response) {
+                // SearchSmith service returned an error response
+                const errorMessage = error.response.data?.detail || error.response.data?.message || error.response.statusText;
+                next(new Error(`SearchSmith service error: ${errorMessage}`));
+            } else if (error.code === 'ECONNREFUSED') {
+                // SearchSmith service is not running
+                next(new Error('SearchSmith service is not running. Please start the service at http://localhost:8001'));
+            } else if (error.code === 'ENOTFOUND') {
+                // SearchSmith service URL is not found
+                next(new Error('SearchSmith service URL not found. Please check if the service is running at http://localhost:8001'));
+            } else {
+                // Other network or unexpected errors
+                next(new Error(`Failed to sync with SearchSmith service: ${error.message}`));
+            }
         }
     }
 

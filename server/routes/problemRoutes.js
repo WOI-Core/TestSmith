@@ -22,5 +22,6 @@ router.post('/searchsmith-results', ProblemController.getSearchsmithResults);
 
 router.post('/search', ProblemController.searchProblems);
 
+router.post('/cleanup-duplicates', ProblemController.cleanupDuplicates);
 
 module.exports = router;

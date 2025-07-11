@@ -44,36 +44,6 @@ async def update_database(request: UpdateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/generate-only", response_model=UpdateResponse)
-async def generate_only(request: UpdateRequest):
-    """
-    Endpoint to generate embeddings and tags without inserting into database.
-    Used by Express server to avoid double insertion.
-    """
-    try:
-        # รับข้อมูลจาก request body รวมถึง problem_name
-        input_data = {
-            "problem_name": request.problem_name,
-            "markdown_content": request.markdown_content,
-            "solution_code": request.solution_code
-        }
-
-        if not all(input_data.values()):
-            raise HTTPException(status_code=400, detail="All fields are required.")
-
-        # เรียกใช้ LangGraph workflow (generate-only, no database insertion)
-        result = graph_manager.invoke_generate_only_graph(input_data)
-
-        if result.get("error"):
-            raise HTTPException(status_code=500, detail=result["error"])
-
-        return UpdateResponse(
-            message="Embeddings and tags generated successfully.",
-            problem_id=result.get("problem_id", "N/A"),
-            problem_name=result.get("problem_name", "N/A")
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/query", response_model=QueryResponse)
 async def query_database(request: QueryRequest):

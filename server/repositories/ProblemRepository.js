@@ -48,22 +48,38 @@ class ProblemRepository extends BaseRepository {
                 return existing;
             }
         }
-        const { data, error } = await this.supabase
-            .from(this.tableName)
-            .insert([{ 
-                problem_id: idToCheck,
-                problem_name: name, 
-                difficulty,
-                is_tagged: false,
-                tags: null,
-                embedding: null // Changed embedding_vector to embedding
-            }]);
+        
+        try {
+            const { data, error } = await this.supabase
+                .from(this.tableName)
+                .insert([{ 
+                    problem_id: idToCheck,
+                    problem_name: name, 
+                    difficulty,
+                    is_tagged: false,
+                    tags: null,
+                    embedding: null // Changed embedding_vector to embedding
+                }]);
 
-        if (error) {
-            console.error('Supabase Create Error:', error);
-            throw new Error('Failed to create problem in database.');
+            if (error) {
+                // Handle duplicate key constraint violation (PostgreSQL error code 23505)
+                if (error.code === '23505' || error.message.includes('duplicate key')) {
+                    console.log(`[CREATE] Duplicate key detected for problem_id: ${idToCheck}, returning existing record`);
+                    // Return the existing record instead of throwing an error
+                    return await this.getById(idToCheck);
+                }
+                console.error('Supabase Create Error:', error);
+                throw new Error('Failed to create problem in database.');
+            }
+            return data;
+        } catch (insertError) {
+            // Handle any other constraint violations or errors
+            if (insertError.code === '23505' || insertError.message.includes('duplicate key')) {
+                console.log(`[CREATE] Duplicate key detected for problem_id: ${idToCheck}, returning existing record`);
+                return await this.getById(idToCheck);
+            }
+            throw insertError;
         }
-        return data;
     }
 
     async createFromBucket(problemData) {
@@ -73,22 +89,38 @@ class ProblemRepository extends BaseRepository {
         if (existing) {
             return existing;
         }
-        const { data, error } = await this.supabase
-            .from(this.tableName)
-            .insert([{ 
-                problem_id: problem_id,
-                problem_name: name, 
-                difficulty,
-                is_tagged: false,
-                tags: null,
-                embedding: null // Changed embedding_vector to embedding
-            }]);
+        
+        try {
+            const { data, error } = await this.supabase
+                .from(this.tableName)
+                .insert([{ 
+                    problem_id: problem_id,
+                    problem_name: name, 
+                    difficulty,
+                    is_tagged: false,
+                    tags: null,
+                    embedding: null // Changed embedding_vector to embedding
+                }]);
 
-        if (error) {
-            console.error('Supabase CreateFromBucket Error:', error);
-            throw new Error('Failed to create problem from bucket metadata in database.');
+            if (error) {
+                // Handle duplicate key constraint violation (PostgreSQL error code 23505)
+                if (error.code === '23505' || error.message.includes('duplicate key')) {
+                    console.log(`[CREATE_FROM_BUCKET] Duplicate key detected for problem_id: ${problem_id}, returning existing record`);
+                    // Return the existing record instead of throwing an error
+                    return await this.getById(problem_id);
+                }
+                console.error('Supabase CreateFromBucket Error:', error);
+                throw new Error('Failed to create problem from bucket metadata in database.');
+            }
+            return data;
+        } catch (insertError) {
+            // Handle any other constraint violations or errors
+            if (insertError.code === '23505' || insertError.message.includes('duplicate key')) {
+                console.log(`[CREATE_FROM_BUCKET] Duplicate key detected for problem_id: ${problem_id}, returning existing record`);
+                return await this.getById(problem_id);
+            }
+            throw insertError;
         }
-        return data;
     }
 
     async findUntagged() {
@@ -135,6 +167,24 @@ class ProblemRepository extends BaseRepository {
         }
 
         return data;
+    }
+
+    async cleanupDuplicateRecords() {
+        try {
+            // Find and remove duplicate records, keeping the one with the most complete data
+            const { data, error } = await this.supabase
+                .rpc('cleanup_duplicate_problems');
+
+            if (error) {
+                console.error('Error cleaning up duplicate records:', error);
+                throw error;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Failed to cleanup duplicate records:', error);
+            throw error;
+        }
     }
 }
 
