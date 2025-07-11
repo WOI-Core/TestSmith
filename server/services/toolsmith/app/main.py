@@ -77,7 +77,16 @@ async def generate_preview_endpoint(
             for file_info in files:
                 if 'file_path' in file_info and 'content' in file_info:
                     safe_file_path = clean_and_sanitize_name(file_info['file_path'])
-                    zipf.writestr(f"{safe_filename_base}/{safe_file_path}", file_info['content'])
+                    content = file_info['content']
+                    
+                    # Handle binary content (like PDFs) properly
+                    if isinstance(content, bytes):
+                        # For binary content, convert bytes to string using latin-1 encoding
+                        # This preserves all byte values without corruption
+                        zipf.writestr(f"{safe_filename_base}/{safe_file_path}", content.decode('latin-1'))
+                    else:
+                        # For text content, convert to string
+                        zipf.writestr(f"{safe_filename_base}/{safe_file_path}", str(content))
                 else:
                     logger.warning(f"Skipping malformed file entry: {file_info}")
         buffer.seek(0)

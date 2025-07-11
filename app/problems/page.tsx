@@ -84,10 +84,13 @@ export default function ProblemsPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/problems/search', {
+      const response = await fetch('/api/problems/searchsmith-results', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: aiSearchQuery }),
+        body: JSON.stringify({ 
+          query: aiSearchQuery,
+          limit: 10
+        }),
       });
 
       if (!response.ok) {
@@ -95,15 +98,20 @@ export default function ProblemsPage() {
       }
       
       const results = await response.json();
-      const recommendedNames: string[] = results.recommended_problems || [];
+      const recommendedProblems = results.recommended_problems || [];
       
-      const newFiltered = problems
-        .filter(problem => recommendedNames.includes(problem.name))
-        .map(problem => ({
-            ...problem,
-            relevance: Math.floor(Math.random() * 10) + 90, // Add mock relevance
-            reason: `Relevant for practicing ${problem.tags[0] || 'concepts'}.` // Add mock reason
-        }));
+      // Map SearchSmith results to our problem format
+      const newFiltered = recommendedProblems.map((searchResult: any) => ({
+        id: searchResult.problem_id || searchResult.name,
+        name: searchResult.name,
+        tags: searchResult.tags || [],
+        difficulty: searchResult.difficulty || 800,
+        solvers: Math.floor(Math.random() * 100) + 1, // Mock data
+        solved: Math.random() > 0.5, // Mock data
+        relevance: Math.floor(Math.random() * 10) + 90, // Mock relevance score
+        reason: `Relevant for practicing ${searchResult.tags?.[0] || 'concepts'}.`,
+        searchsmith_data: searchResult // Store original SearchSmith data
+      }));
 
       setAiSearchResults(newFiltered);
 

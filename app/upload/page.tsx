@@ -37,12 +37,24 @@ interface UntaggedProblem {
   name: string;
   difficulty: number;
   tags: string[];
+  is_tagged: boolean;
+  embedding: any;
   isTagging?: boolean;
 }
 
 interface GeneratedFile {
   file_path: string;
   content: string;
+}
+
+interface ProblemWithStatus {
+  id: string;
+  name: string;
+  difficulty: number;
+  tags: string[];
+  is_tagged?: boolean;
+  embedding?: any;
+  isTagging?: boolean;
 }
 
 export default function UploadPage() {
@@ -59,8 +71,10 @@ export default function UploadPage() {
   const [taskName, setTaskName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   
-  const [untaggedProblems, setUntaggedProblems] = useState<UntaggedProblem[]>([]);
+  const [untaggedProblems, setUntaggedProblems] = useState<ProblemWithStatus[]>([]);
   const [isLoadingUntagged, setIsLoadingUntagged] = useState(false);
+  
+
 
   const handleGenerateAndPreview = async (e: FormEvent) => {
     e.preventDefault();
@@ -156,46 +170,100 @@ export default function UploadPage() {
         return;
     }
 
+    const canonicalId = taskName.trim();
     setIsUploading(true);
-    setStatus(`Uploading task "${taskName}" to storage...`);
+    setStatus(`Processing and uploading task "${canonicalId}"...`);
     try {
-        const response = await fetch('/api/toolsmith/upload-task', {
+        // 1. Prepare markdown and solution for embedding/tagging
+        const markdownFile = generatedFiles.find(f => f.file_path.endsWith('.md'));
+        const solutionFile = generatedFiles.find(f => f.file_path.endsWith('.cpp'));
+        if (!markdownFile || !solutionFile) throw new Error('Missing markdown or solution file for embedding.');
+
+        // 2. Call SearchSmith/tagging service first
+        const taggingRes = await fetch("/api/problems/sync-searchsmith", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                problem_name: canonicalId,
+                markdown_content: markdownFile.content,
+                solution_code: solutionFile.content,
+                problem_id: canonicalId,
+            }),
+        });
+        if (!taggingRes.ok) {
+            const errorData = await taggingRes.json();
+            throw new Error(errorData.message || 'Failed to process embedding/tags.');
+        }
+        const taggingResult = await taggingRes.json();
+        // 3. Now upload to table with all data (embedding/tags included)
+        const uploadRes = await fetch('/api/toolsmith/upload-task', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                task_name: taskName,
-                files: generatedFiles
+                task_name: canonicalId,
+                files: generatedFiles,
+                embedding: taggingResult.result?.embedding,
+                tags: taggingResult.result?.tags,
             }),
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
+        if (!uploadRes.ok) {
+            const errorData = await uploadRes.json();
             throw new Error(errorData.detail || 'Failed to upload task.');
         }
-
-        const result = await response.json();
-        toast({ title: "Upload Successful", description: result.message, variant: "success" });
-        setStatus(`✅ ${result.message}`);
+        const result = await uploadRes.json();
+        toast({ title: "Upload & Tagging Successful", description: result.message || "Task uploaded and tagged successfully!", variant: "success" });
+        setStatus(`✅ ${result.message || "Task uploaded and tagged successfully!"}`);
         setGeneratedFiles([]);
         setTaskName("");
-
+        // Refresh the problems list
+        fetchAllProblemsWithStatus();
     } catch (err: any) {
-        toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
-        setStatus(`❌ Upload Error: ${err.message}`);
+        toast({ title: "Upload/Tagging Failed", description: err.message, variant: "destructive" });
+        setStatus(`❌ Upload/Tagging Error: ${err.message}`);
     } finally {
         setIsUploading(false);
     }
   };
 
-  const fetchUntaggedProblems = useCallback(async () => {
+  const fetchAllProblemsWithStatus = useCallback(async () => {
     setIsLoadingUntagged(true);
     try {
-      const res = await fetch("/api/problems/from-storage");
-      const data = await res.json();
-      const problems = Array.isArray(data)
-        ? data.map((file: { name: string }) => ({ id: file.name, name: file.name, difficulty: 800, tags: [] as string[] }))
+      // Fetch all problems from bucket
+      const resBucket = await fetch("/api/problems/from-storage");
+      const bucketData = await resBucket.json();
+      const bucketProblems = Array.isArray(bucketData)
+        ? bucketData.map((file: any) => ({
+            id: file.id || file.name, // fallback for old format
+            name: file.name || file.title || file.id,
+            difficulty: file.difficulty || 800,
+            tags: file.tags || [],
+          }))
         : [];
-      setUntaggedProblems(problems);
+
+      // Fetch all problems from table
+      const resTable = await fetch("/api/problems");
+      const tableData = await resTable.json();
+      const tableProblems = Array.isArray(tableData)
+        ? tableData.map((row: any) => ({
+            id: row.problem_id,
+            name: row.problem_name,
+            is_tagged: row.is_tagged,
+            embedding: row.embedding,
+            tags: row.tags || [],
+          }))
+        : [];
+
+      // Merge: for each bucket problem, attach table info if exists
+      const merged = bucketProblems.map((bucketProb) => {
+        const tableProb = tableProblems.find((p) => p.id === bucketProb.id || p.name === bucketProb.name);
+        return {
+          ...bucketProb,
+          is_tagged: tableProb?.is_tagged ?? false,
+          embedding: tableProb?.embedding,
+          tags: tableProb?.tags?.length ? tableProb.tags : bucketProb.tags,
+        };
+      });
+      setUntaggedProblems(merged);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
       setUntaggedProblems([]);
@@ -210,20 +278,22 @@ export default function UploadPage() {
     return await data.text();
   };
 
-  const handleTag = async (problem: UntaggedProblem) => {
+  const handleTag = async (problem: ProblemWithStatus) => {
     setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: true } : p));
     try {
-      const md = await fetchFile(`${problem.name}/Problems/${problem.name}.md`);
-      const sol = await fetchFile(`${problem.name}/Solutions/${problem.name}.cpp`);
+      const canonicalId = problem.name.trim();
+      const md = await fetchFile(`${canonicalId}/Problems/${canonicalId}.md`);
+      const sol = await fetchFile(`${canonicalId}/Solutions/${canonicalId}.cpp`);
       
-      // FIX: Call a new API route on your Next.js backend instead of localhost directly.
-      const response = await fetch("/api/problems/tag-and-sync", {
+      // Call the Express server endpoint for syncing with SearchSmith
+      const response = await fetch("/api/problems/sync-searchsmith", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          problem_name: problem.name,
+          problem_name: canonicalId,
           markdown_content: md,
           solution_code: sol,
+          problem_id: canonicalId, // Always use canonicalId
         }),
       });
 
@@ -232,17 +302,32 @@ export default function UploadPage() {
         throw new Error(errorData.message || "Failed to tag problem.");
       }
 
-      toast({ title: "Tagged", description: `${problem.name} saved and synced.`, variant: "success" });
-      setUntaggedProblems(problems => problems.filter(p => p.id !== problem.id));
+      const result = await response.json();
+      
+      // Show detailed success message with SearchSmith results
+      const tagsGenerated = result.tags_generated || [];
+      const message = `✅ ${canonicalId} tagged successfully!\n\nGenerated tags: ${tagsGenerated.join(', ') || 'None'}\nEmbedding: ${result.embedding_generated ? 'Generated' : 'Failed'}\nDatabase: Updated`;
+      
+      toast({ 
+        title: "SearchSmith Tagging Complete", 
+        description: message, 
+        variant: "success",
+        duration: 5000
+      });
+      
+      setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: false, is_tagged: true, embedding: result.result?.embedding, tags: result.result?.tags || p.tags } : p));
+      fetchAllProblemsWithStatus();
     } catch (err: any) {
       toast({ title: "Error tagging", description: err.message, variant: "destructive" });
       setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: false } : p));
     }
   };
 
+
+
   useEffect(() => {
-    fetchUntaggedProblems();
-  }, [fetchUntaggedProblems]);
+    fetchAllProblemsWithStatus();
+  }, [fetchAllProblemsWithStatus]);
   
   const selectedFileContent = generatedFiles.find(f => f.file_path === selectedFileName)?.content || "";
 
@@ -307,11 +392,11 @@ export default function UploadPage() {
       <Card>
         <CardHeader>
           <CardTitle>Problems in Storage (Untagged)</CardTitle>
-          <CardDescription>Problems that are fetched but not tagged yet.</CardDescription>
+          <CardDescription>Problems that exist in the database but haven't been tagged with embeddings yet.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-end space-x-2 mb-4">
-            <Button onClick={fetchUntaggedProblems} disabled={isLoadingUntagged}>
+            <Button onClick={fetchAllProblemsWithStatus} disabled={isLoadingUntagged}>
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingUntagged ? 'animate-spin' : ''}`} />
               {isLoadingUntagged ? "Syncing..." : "Sync Problems"}
             </Button>
@@ -323,13 +408,15 @@ export default function UploadPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Difficulty</TableHead>
+                  <TableHead>Tags</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingUntagged ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24">
+                    <TableCell colSpan={6} className="text-center h-24">
                         <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                     </TableCell>
                   </TableRow>
@@ -342,6 +429,26 @@ export default function UploadPage() {
                         <Input type="number" defaultValue={problem.difficulty} className="w-24" />
                       </TableCell>
                       <TableCell>
+                        {problem.tags && problem.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {problem.tags.map((tag, index) => (
+                              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">No tags</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {problem.is_tagged ? (
+                          <span className="text-green-600 text-sm">Tagged</span>
+                        ) : (
+                          <span className="text-orange-600 text-sm">Untagged</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => handleTag(problem)} disabled={problem.isTagging}>
                           {problem.isTagging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                           Tag
@@ -351,7 +458,7 @@ export default function UploadPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24">No problems found in storage.</TableCell>
+                    <TableCell colSpan={6} className="text-center h-24">No untagged problems found in database.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -359,6 +466,8 @@ export default function UploadPage() {
           </div>
         </CardContent>
       </Card>
+
+
     </div>
   );
 }

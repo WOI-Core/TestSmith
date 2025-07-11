@@ -39,10 +39,19 @@ class ProblemRepository extends BaseRepository {
     }
 
     async create(problemData) {
-        const { name, difficulty } = problemData;
+        const { problem_id, name, difficulty } = problemData;
+        // Check if already exists
+        let idToCheck = problem_id || problemData.id;
+        if (idToCheck) {
+            const existing = await this.getById(idToCheck);
+            if (existing) {
+                return existing;
+            }
+        }
         const { data, error } = await this.supabase
             .from(this.tableName)
             .insert([{ 
+                problem_id: idToCheck,
                 problem_name: name, 
                 difficulty,
                 is_tagged: false,
@@ -59,6 +68,11 @@ class ProblemRepository extends BaseRepository {
 
     async createFromBucket(problemData) {
         const { problem_id, name, difficulty } = problemData;
+        // Check if already exists
+        const existing = await this.getById(problem_id);
+        if (existing) {
+            return existing;
+        }
         const { data, error } = await this.supabase
             .from(this.tableName)
             .insert([{ 
@@ -102,6 +116,24 @@ class ProblemRepository extends BaseRepository {
             console.error('Supabase Update Problem Error:', error);
             throw new Error('Failed to update problem in database.');
         }
+        return data;
+    }
+
+    async getByName(problemName) {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('problem_id, problem_name, difficulty, is_tagged, tags, embedding')
+            .eq('problem_name', problemName)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116' && error.details === 'The result contains 0 rows') {
+                return null;
+            }
+            console.error('Error fetching problem by name:', error.message);
+            throw error;
+        }
+
         return data;
     }
 }
