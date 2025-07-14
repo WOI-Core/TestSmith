@@ -177,10 +177,30 @@ export default function UploadPage() {
         // 1. Prepare markdown and solution for embedding/tagging
         const markdownFile = generatedFiles.find(f => f.file_path.endsWith('.md'));
         const solutionFile = generatedFiles.find(f => f.file_path.endsWith('.cpp'));
+        const configFile = generatedFiles.find(f => f.file_path === 'config.json');
+        
         if (!markdownFile || !solutionFile) throw new Error('Missing markdown or solution file for embedding.');
+        if (!configFile) throw new Error('Missing config.json file.');
 
-        // 2. Call SearchSmith/tagging service first
-        const taggingRes = await fetch("/api/problems/sync-searchsmith", {
+        // 2. Upload files to storage FIRST
+        setStatus(`Uploading files to storage...`);
+        const uploadRes = await fetch('/api/toolsmith/upload-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                task_name: canonicalId,
+                files: generatedFiles,
+            }),
+        });
+        
+        if (!uploadRes.ok) {
+            const errorData = await uploadRes.json();
+            throw new Error(`Storage upload failed: ${errorData.detail || 'Unknown error'}`);
+        }
+
+        // 3. Now sync with SearchSmith (files are in storage)
+        setStatus(`Syncing with SearchSmith for tagging...`);
+        const taggingResponse = await fetch("/api/problems/sync-searchsmith", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -190,29 +210,38 @@ export default function UploadPage() {
                 problem_id: canonicalId,
             }),
         });
-        if (!taggingRes.ok) {
-            const errorData = await taggingRes.json();
-            throw new Error(errorData.message || 'Failed to process embedding/tags.');
+
+        if (!taggingResponse.ok) {
+            const errorData = await taggingResponse.json();
+            throw new Error(`SearchSmith tagging failed: ${errorData.message || 'Unknown error'}`);
         }
-        const taggingResult = await taggingRes.json();
-        // 3. Now upload to table with all data (embedding/tags included)
-        const uploadRes = await fetch('/api/toolsmith/upload-task', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                task_name: canonicalId,
-                files: generatedFiles,
-                embedding: taggingResult.result?.embedding,
-                tags: taggingResult.result?.tags,
-            }),
-        });
-        if (!uploadRes.ok) {
-            const errorData = await uploadRes.json();
-            throw new Error(errorData.detail || 'Failed to upload task.');
+
+        const taggingResult = await taggingResponse.json();
+
+        // 4. Upload to Supabase problems table
+        setStatus(`Updating database...`);
+        const { data, error } = await supabase
+            .from('problems')
+            .upsert({
+                problem_id: canonicalId,
+                problem_name: canonicalId,
+                markdown_content: markdownFile.content,
+                solution_code: solutionFile.content,
+                tags: taggingResult.tags || [],
+                embedding: taggingResult.embedding || null,
+                is_tagged: true,
+                difficulty: 800, // Default difficulty
+                created_at: new Date().toISOString()
+            }, {
+                onConflict: 'problem_id'
+            });
+
+        if (error) {
+            throw new Error(`Failed to upload to Supabase: ${error.message}`);
         }
-        const result = await uploadRes.json();
-        toast({ title: "Upload & Tagging Successful", description: result.message || "Task uploaded and tagged successfully!", variant: "success" });
-        setStatus(`✅ ${result.message || "Task uploaded and tagged successfully!"}`);
+
+        toast({ title: "Upload & Tagging Successful", description: "Task uploaded and tagged successfully!" });
+        setStatus(`✅ Task "${canonicalId}" uploaded and tagged successfully!`);
         setGeneratedFiles([]);
         setTaskName("");
         // Refresh the problems list
@@ -282,6 +311,8 @@ export default function UploadPage() {
     setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: true } : p));
     try {
       const canonicalId = problem.name.trim();
+      
+      // First, ensure the problem exists in storage
       const md = await fetchFile(`${canonicalId}/Problems/${canonicalId}.md`);
       const sol = await fetchFile(`${canonicalId}/Solutions/${canonicalId}.cpp`);
       
@@ -304,18 +335,38 @@ export default function UploadPage() {
 
       const result = await response.json();
       
+      // Upload to Supabase problems table
+      const { data, error } = await supabase
+          .from('problems')
+          .upsert({
+              problem_id: canonicalId,
+              problem_name: canonicalId,
+              markdown_content: md,
+              solution_code: sol,
+              tags: result.tags || [],
+              embedding: result.embedding || null,
+              is_tagged: true,
+              difficulty: problem.difficulty || 800,
+              created_at: new Date().toISOString()
+          }, {
+              onConflict: 'problem_id'
+          });
+
+      if (error) {
+          throw new Error(`Failed to upload to Supabase: ${error.message}`);
+      }
+      
       // Show detailed success message with SearchSmith results
-      const tagsGenerated = result.tags_generated || [];
-      const message = `✅ ${canonicalId} tagged successfully!\n\nGenerated tags: ${tagsGenerated.join(', ') || 'None'}\nEmbedding: ${result.embedding_generated ? 'Generated' : 'Failed'}\nDatabase: Updated`;
+      const tagsGenerated = result.tags || [];
+      const message = `✅ ${canonicalId} tagged successfully!\n\nGenerated tags: ${tagsGenerated.join(', ') || 'None'}\nEmbedding: ${result.embedding ? 'Generated' : 'Failed'}\nDatabase: Updated`;
       
       toast({ 
         title: "SearchSmith Tagging Complete", 
         description: message, 
-        variant: "success",
         duration: 5000
       });
       
-      setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: false, is_tagged: true, embedding: result.result?.embedding, tags: result.result?.tags || p.tags } : p));
+      setUntaggedProblems(problems => problems.map(p => p.id === problem.id ? { ...p, isTagging: false, is_tagged: true, embedding: result.embedding, tags: result.tags || p.tags } : p));
       fetchAllProblemsWithStatus();
     } catch (err: any) {
       toast({ title: "Error tagging", description: err.message, variant: "destructive" });

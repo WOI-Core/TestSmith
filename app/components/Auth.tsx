@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 
 const Auth = () => {
   const [email, setEmail] = useState('');

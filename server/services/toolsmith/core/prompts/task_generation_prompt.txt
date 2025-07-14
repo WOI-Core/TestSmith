@@ -12,6 +12,16 @@ Your goal is to generate a complete learning module based on the user's request.
 1.  **Task Name (CamelCase):** The English name for the task in CamelCase. Example: "TwoSumProblem".
     ________________________________________
 2.  **generate.py:** A Python script with a function `generate_test_cases(cases_size: int)` that returns two lists: `(inputs, outputs)`. It must NOT write to files. All necessary imports must be inside the function.
+    
+    **IMPORTANT GUIDELINES FOR TEST CASE GENERATION:**
+    - Use simple, efficient algorithms that don't cause infinite recursion
+    - For dynamic programming problems, use iterative approaches when possible
+    - For graph problems, use BFS/DFS with proper visited state tracking
+    - For recursive algorithms, ensure proper base cases and termination conditions
+    - Use small input sizes (1-20 for most problems) to avoid timeouts
+    - If using recursion, limit depth and add proper memoization
+    - Avoid complex algorithms that might cause stack overflow
+    - Use simple mathematical calculations or brute force for small inputs
     ________________________________________
 3.  **README.md:** A markdown file with the problem statement in Thai, input/output format, constraints, and an HTML table for examples.
     ________________________________________

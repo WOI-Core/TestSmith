@@ -3,6 +3,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from .models import UpdateRequest, QueryRequest, QueryResponse, UpdateResponse
 from core.graph_manager import GraphManager
 from core.search_service import SearchService
+from core.services.gemini_service import GeminiService
 
 app = FastAPI(
     title="Searchsmith API",
@@ -13,6 +14,7 @@ app = FastAPI(
 router = APIRouter()
 graph_manager = GraphManager()
 search_service = SearchService()
+gemini_service = GeminiService()
 
 @router.post("/update-database", response_model=UpdateResponse)
 async def update_database(request: UpdateRequest):
@@ -54,6 +56,36 @@ async def query_database(request: QueryRequest):
     try:
         problem_names = search_service.hybrid_search(request.query)
         return QueryResponse(recommended_problems=problem_names)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-only")
+async def generate_only(request: UpdateRequest):
+    """
+    Endpoint to generate tags and embeddings only, without inserting into database.
+    """
+    try:
+        if not all([request.problem_name, request.markdown_content, request.solution_code]):
+            raise HTTPException(status_code=400, detail="All fields are required.")
+
+        # Generate tags
+        tags_str = gemini_service.generate_tags(
+            markdown=request.markdown_content,
+            code=request.solution_code
+        )
+        tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+
+        # Generate embedding
+        combined_text = f"Tags: {', '.join(tags)}\n\nProblem: {request.markdown_content}"
+        embedding = gemini_service.get_embedding(combined_text)
+
+        return {
+            "tags": tags,
+            "embedding": embedding,
+            "problem_name": request.problem_name,
+            "message": "Tags and embedding generated successfully"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

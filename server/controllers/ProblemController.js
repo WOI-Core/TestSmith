@@ -27,7 +27,7 @@ class ProblemController {
     }
     
     static async searchProblems(req, res, next) {
-        const searchsmithUrl = 'http://localhost:8001/v1/search';
+        const searchsmithUrl = 'http://localhost:8001/v1/query';
         try {
             const { query, tags, limit } = req.body;
             const response = await axios.post(searchsmithUrl, { query, tags, limit });
@@ -193,8 +193,7 @@ class ProblemController {
                 console.log('[SYNC_SEARCHSMITH] Inserted new problem from bucket:', problem_id, problemConfig.title);
             }
 
-            // Call SearchSmith service ONLY for generating embeddings and tags
-            // DO NOT let it insert into the database
+            // Call SearchSmith service to generate tags and embeddings
             console.log('[SYNC_SEARCHSMITH] Calling SearchSmith service...');
             const searchsmithResponse = await axios.post(searchsmithUrl, {
                 problem_name,
@@ -209,7 +208,7 @@ class ProblemController {
                 throw new Error(`SearchSmith service returned status ${searchsmithResponse.status}: ${searchsmithResponse.statusText}`);
             }
 
-            // Extract tags and embedding from the top-level response
+            // Extract tags and embedding from the response
             const { tags, embedding: embedding_vector } = searchsmithResponse.data || {};
             console.log('[SYNC_SEARCHSMITH] SearchSmith response received:', {
                 tags_count: tags?.length || 0,

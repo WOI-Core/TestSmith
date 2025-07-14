@@ -36,7 +36,7 @@ export default function AdminSignupPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                login(data.data);
+                login(data.data.user, data.data.token);
                 router.push('/');
             } else {
                 throw new Error(data.error || 'Admin signup failed');

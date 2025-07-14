@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
-  const [recentProblems, setRecentProblems] = useState([])
 
   const features = [
     {
@@ -79,27 +78,7 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    // Simulate fetching recent problems
-    setRecentProblems([
-      { id: "two_sum", name: "Two Sum", difficulty: "Easy", solvers: 1234 },
-      { id: "binary_search", name: "Binary Search", difficulty: "Medium", solvers: 856 },
-      { id: "merge_intervals", name: "Merge Intervals", difficulty: "Medium", solvers: 642 },
-    ])
-  }, [])
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case "easy":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "hard":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
 
   return (
     <div className="h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 overflow-hidden">
@@ -199,61 +178,6 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent className="text-center">
                   <CardDescription className="text-gray-600 leading-relaxed">{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Problems Section */}
-      <section className="py-20 bg-gradient-to-r from-purple-50 to-blue-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">Trending Problems</h2>
-              <p className="text-xl text-gray-600">Popular challenges solved by the community</p>
-            </div>
-            <Button
-              asChild
-              variant="outline"
-              className="border-purple-200 text-purple-700 hover:bg-purple-50 bg-transparent"
-            >
-              <Link href="/problems">
-                View All Problems
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {recentProblems.map((problem, index) => (
-              <Card
-                key={problem.id}
-                className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
-              >
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge variant="outline" className={getDifficultyColor(problem.difficulty)}>
-                      {problem.difficulty}
-                    </Badge>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      {problem.solvers} solved
-                    </div>
-                  </div>
-                  <CardTitle className="text-xl font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                    {problem.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full bg-purple-600 hover:bg-purple-700 text-white group">
-                    <Link href={`/problem?id=${problem.id}`}>
-                      <Play className="h-4 w-4 mr-2" />
-                      Solve Now
-                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  </Button>
                 </CardContent>
               </Card>
             ))}
