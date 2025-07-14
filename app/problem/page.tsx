@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, XCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 interface Problem {
   id: string;
@@ -253,6 +255,12 @@ export default function ProblemPage() {
     ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/problems/${problem.id}/Problems/${problem.pdfFileName}`
     : null;
 
+  const languageMap: Record<string, string> = {
+    "C++": "cpp",
+    "Python": "python",
+    "Java": "java",
+  };
+
   return (
     <div className="container mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-8">
       <Card>
@@ -292,11 +300,19 @@ export default function ProblemPage() {
                 </Select>
               </div>
               <div>
-                <Textarea
-                  placeholder="Write your code here..."
+                <MonacoEditor
+                  height="400px"
+                  language={languageMap[selectedLanguage] || "plaintext"}
+                  theme="vs-dark"
                   value={sourceCode}
-                  onChange={(e) => setSourceCode(e.target.value)}
-                  className="h-96 font-mono"
+                  onChange={(value) => setSourceCode(value || "")}
+                  options={{
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "on",
+                    automaticLayout: true,
+                  }}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting || pollingIntervalId !== null}>
