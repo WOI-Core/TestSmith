@@ -1,0 +1,24 @@
+
+> backend@1.0.0 dev /home/saramasathiphat/test-smith/packages/backend
+> node index.js
+
+[dotenv@17.2.0] injecting env (0) from ../.env.local (tip: ⚙️  suppress all logs with { quiet: true })
+[dotenv@17.2.0] injecting env (0) from .env (tip: ⚙️  override existing env vars with { override: true })
+/home/saramasathiphat/test-smith/packages/backend/node_modules/@supabase/supabase-js/dist/main/SupabaseClient.js:43
+            throw new Error('supabaseUrl is required.');
+            ^
+
+Error: supabaseUrl is required.
+    at new SupabaseClient (/home/saramasathiphat/test-smith/packages/backend/node_modules/@supabase/supabase-js/dist/main/SupabaseClient.js:43:19)
+    at createClient (/home/saramasathiphat/test-smith/packages/backend/node_modules/@supabase/supabase-js/dist/main/index.js:38:12)
+    at Object.<anonymous> (/home/saramasathiphat/test-smith/packages/backend/config/database.js:5:18)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1487:12)
+
+Node.js v22.16.0
+ ELIFECYCLE  Command failed with exit code 1.

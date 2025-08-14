@@ -1,0 +1,21 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": 2022, // Support modern ECMAScript features
+    "sourceType": "module"
+  },
+  "ignorePatterns": [
+    "services/searchsmith/venv/**",
+    "services/toolsmith/venv/**",
+    "services/toolsmith/frontend/**"
+  ],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "next" }], // Allow `next` to be unused in middleware/controllers
+    "no-empty": ["error", { "allowEmptyCatch": true }] // Allow empty catch blocks if needed
+    // Add any specific rules for your backend here
+  }
+} 
